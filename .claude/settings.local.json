@@ -1,0 +1,17 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(markitdown \"C:\\\\Users\\\\ACER\\\\Documents\\\\VIDEOJUEGO\\\\Reptiles_RPG_Sistema_Profesional_V2.xlsm\")",
+      "Bash(markitdown \"C:\\\\Users\\\\ACER\\\\Downloads\\\\REPTILES_RPG_MASTER_V9_DESKTOP_EXCEL.xlsx\")",
+      "Bash(python -c \"import openpyxl, pandas; print\\('ok'\\)\")",
+      "Bash(python -c ' *)",
+      "Bash(npx --yes create-next-app@latest . --typescript --tailwind --eslint --app --src-dir --import-alias \"@/*\" --no-turbopack --use-npm)",
+      "Bash(python gen_data.py)",
+      "Bash(cd \"C:\\\\Users\\\\ACER\\\\Desktop\\\\ReptilKombat\" && rm -rf tmp-scaffold 2>&1; ls)",
+      "PowerShell(Stop-Process -Id 3264,19608,22236 -Force -ErrorAction SilentlyContinue)",
+      "Bash(npm install *)",
+      "Bash(python emit_ts.py)",
+      "Bash(npx vitest *)"
+    ]
+  }
+}

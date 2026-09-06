@@ -1,0 +1,81 @@
+@import "tailwindcss";
+
+:root {
+  --background: #07120f;
+  --panel: #0d1c18;
+  --panel-secondary: #122720;
+  --border-subtle: #1c332c;
+  --foreground: #e8f3ee;
+  --foreground-muted: #8fa89c;
+  --reptile-green: #35c46a;
+
+  --affinity-termico: #e67e22;
+  --affinity-acuatico: #3498db;
+  --affinity-venenoso: #8e44ad;
+  --affinity-acorazado: #607d8b;
+  --affinity-agil: #2ecc71;
+  --affinity-camuflaje: #7d8f2a;
+  --affinity-sensorial: #16a085;
+  --affinity-constrictor: #795548;
+
+  --state-ok: #35c46a;
+  --state-warn: #e0a72e;
+  --state-danger: #e05252;
+}
+
+@theme inline {
+  --color-background: var(--background);
+  --color-panel: var(--panel);
+  --color-panel-secondary: var(--panel-secondary);
+  --color-border-subtle: var(--border-subtle);
+  --color-foreground: var(--foreground);
+  --color-foreground-muted: var(--foreground-muted);
+  --color-reptile-green: var(--reptile-green);
+
+  --color-affinity-termico: var(--affinity-termico);
+  --color-affinity-acuatico: var(--affinity-acuatico);
+  --color-affinity-venenoso: var(--affinity-venenoso);
+  --color-affinity-acorazado: var(--affinity-acorazado);
+  --color-affinity-agil: var(--affinity-agil);
+  --color-affinity-camuflaje: var(--affinity-camuflaje);
+  --color-affinity-sensorial: var(--affinity-sensorial);
+  --color-affinity-constrictor: var(--affinity-constrictor);
+
+  --color-state-ok: var(--state-ok);
+  --color-state-warn: var(--state-warn);
+  --color-state-danger: var(--state-danger);
+
+  --font-sans: var(--font-geist-sans);
+  --font-mono: var(--font-geist-mono);
+}
+
+* {
+  border-color: var(--border-subtle);
+}
+
+body {
+  background: var(--background);
+  color: var(--foreground);
+  font-family: var(--font-sans), Arial, Helvetica, sans-serif;
+}
+
+::selection {
+  background: var(--reptile-green);
+  color: #04120b;
+}
+
+::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+::-webkit-scrollbar-track {
+  background: var(--panel);
+}
+::-webkit-scrollbar-thumb {
+  background: var(--panel-secondary);
+  border-radius: 6px;
+  border: 2px solid var(--panel);
+}
+::-webkit-scrollbar-thumb:hover {
+  background: var(--reptile-green);
+}
