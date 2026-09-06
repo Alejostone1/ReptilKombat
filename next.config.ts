@@ -6,6 +6,7 @@ const nextConfig: NextConfig = {
     root: path.resolve(__dirname),
   },
   images: {
+    dangerouslyAllowSVG: true,
     remotePatterns: [
       { protocol: "https", hostname: "upload.wikimedia.org" },
       { protocol: "https", hostname: "commons.wikimedia.org" },
