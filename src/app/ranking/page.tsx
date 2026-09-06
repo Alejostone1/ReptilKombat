@@ -3,7 +3,6 @@
 import { useMemo, useState } from "react";
 import Link from "next/link";
 import { useEngineData } from "@/lib/hooks/useEngineData";
-import { getReptilById } from "@/data/roster";
 import { AffinityBadge } from "@/components/affinities/AffinityBadge";
 import { BalanceStatusBadge } from "@/components/ui/BalanceStatusBadge";
 import { Tabs } from "@/components/ui/Tabs";
@@ -82,8 +81,8 @@ export default function RankingPage() {
           </thead>
           <tbody>
             {sorted.map((row, i) => {
-              const mejorR = row.mejor ? getReptilById(row.mejor.reptilId) : null;
-              const peorR = row.peor ? getReptilById(row.peor.reptilId) : null;
+              const mejorR = row.mejor ? roster.find((r) => r.id === row.mejor!.reptilId) : null;
+              const peorR = row.peor ? roster.find((r) => r.id === row.peor!.reptilId) : null;
               return (
                 <tr key={row.reptil.id} className="border-t border-border-subtle hover:bg-panel-secondary/60">
                   <td className="px-3 py-2 text-foreground-muted">{i + 1}</td>

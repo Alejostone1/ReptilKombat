@@ -32,10 +32,10 @@ export function ReptileCard({ reptil, estado }: ReptileCardProps) {
             <span className="text-xs text-foreground-muted">{reptil.rolTactico}</span>
           </div>
           <div className="space-y-1 pt-1">
-            <StatBar label="HP" value={reptil.hp} compact colorClass="bg-state-ok" />
-            <StatBar label="ATK" value={reptil.atk} compact colorClass="bg-affinity-termico" />
-            <StatBar label="DEF" value={reptil.def} compact colorClass="bg-affinity-acorazado" />
-            <StatBar label="SPD" value={reptil.spd} compact colorClass="bg-affinity-agil" />
+            <StatBar statKey="hp" value={reptil.hp} compact colorClass="bg-state-ok" />
+            <StatBar statKey="atk" value={reptil.atk} compact colorClass="bg-affinity-termico" />
+            <StatBar statKey="def" value={reptil.def} compact colorClass="bg-affinity-acorazado" />
+            <StatBar statKey="spd" value={reptil.spd} compact colorClass="bg-affinity-agil" />
           </div>
           <div className="flex items-center justify-between pt-1 text-xs text-foreground-muted">
             <span>BST</span>

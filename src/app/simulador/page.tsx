@@ -1,7 +1,7 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { getReptilById, getAbilitiesByOwner } from "@/data/roster";
+import { useRoster } from "@/lib/hooks/useRoster";
 import { useEngineData } from "@/lib/hooks/useEngineData";
 import { calculateDamage } from "@/lib/game-engine/damage";
 import { ReptileSelector } from "@/components/reptiles/ReptileSelector";
@@ -10,16 +10,18 @@ import { Select } from "@/components/ui/Input";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/Card";
 import { Badge } from "@/components/ui/Badge";
 import { DamageResultPanel } from "@/components/combat/DamageResultPanel";
+import { STAT_LABELS } from "@/lib/game-engine/stat-labels";
 
 export default function SimuladorPage() {
   const { config } = useEngineData();
+  const { getReptilById, abilitiesByOwner } = useRoster();
   const [atacanteId, setAtacanteId] = useState<string | null>("dragon-barbudo");
   const [defensorId, setDefensorId] = useState<string | null>("caiman-negro");
   const [habilidadId, setHabilidadId] = useState<string>("");
 
   const atacante = atacanteId ? getReptilById(atacanteId) : null;
   const defensor = defensorId ? getReptilById(defensorId) : null;
-  const habilidadesAtacante = useMemo(() => (atacante ? getAbilitiesByOwner(atacante.id) : []), [atacante]);
+  const habilidadesAtacante = useMemo(() => (atacante ? abilitiesByOwner(atacante.id) : []), [atacante, abilitiesByOwner]);
   const habilidad = habilidadesAtacante.find((h) => h.id === habilidadId) ?? habilidadesAtacante[0] ?? null;
 
   const resultado = atacante && defensor && habilidad ? calculateDamage(atacante, defensor, habilidad, config) : null;
@@ -46,7 +48,7 @@ export default function SimuladorPage() {
             <div className="mt-3 space-y-1 text-sm">
               <AffinityBadge afinidad={atacante.afinidad} />
               <p className="text-foreground-muted">
-                ATK <span className="font-mono text-foreground">{atacante.atk}</span>
+                {STAT_LABELS.atk.emoji} Ataque <span className="font-mono text-foreground">{atacante.atk}</span>
               </p>
             </div>
           )}
@@ -59,8 +61,8 @@ export default function SimuladorPage() {
             <div className="mt-3 space-y-1 text-sm">
               <AffinityBadge afinidad={defensor.afinidad} />
               <p className="text-foreground-muted">
-                DEF <span className="font-mono text-foreground">{defensor.def}</span> · HP{" "}
-                <span className="font-mono text-foreground">{defensor.hp}</span>
+                {STAT_LABELS.def.emoji} Defensa <span className="font-mono text-foreground">{defensor.def}</span> ·{" "}
+                {STAT_LABELS.hp.emoji} Salud <span className="font-mono text-foreground">{defensor.hp}</span>
               </p>
             </div>
           )}

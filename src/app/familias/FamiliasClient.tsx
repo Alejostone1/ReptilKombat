@@ -2,16 +2,18 @@
 
 import { useMemo, useState } from "react";
 import Link from "next/link";
-import { ROSTER } from "@/data/roster";
+import { useRoster } from "@/lib/hooks/useRoster";
+import type { Reptil } from "@/types/reptile";
 import { AffinityBadge } from "@/components/affinities/AffinityBadge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/Card";
 import { Input } from "@/components/ui/Input";
 
 export function FamiliasClient({ initialQuery = "" }: { initialQuery?: string }) {
+  const { roster: ROSTER } = useRoster();
   const [query, setQuery] = useState(initialQuery);
 
   const grupos = useMemo(() => {
-    const map = new Map<string, typeof ROSTER>();
+    const map = new Map<string, Reptil[]>();
     for (const r of ROSTER) {
       if (!map.has(r.familia)) map.set(r.familia, []);
       map.get(r.familia)!.push(r);
@@ -31,7 +33,7 @@ export function FamiliasClient({ initialQuery = "" }: { initialQuery?: string })
         };
       })
       .sort((a, b) => b.miembros.length - a.miembros.length || a.familia.localeCompare(b.familia));
-  }, []);
+  }, [ROSTER]);
 
   const filtrados = grupos.filter((g) => !query || g.familia.toLowerCase().includes(query.toLowerCase()));
 

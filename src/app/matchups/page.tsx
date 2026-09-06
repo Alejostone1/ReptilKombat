@@ -2,7 +2,6 @@
 
 import { useState } from "react";
 import { useEngineData } from "@/lib/hooks/useEngineData";
-import { getReptilById } from "@/data/roster";
 import { calculateMatchup, classifyMatchupMargin } from "@/lib/game-engine/matchups";
 import { MatchupHeatmap } from "@/components/combat/MatchupHeatmap";
 import { MatchupCard } from "@/components/combat/MatchupCard";
@@ -11,8 +10,8 @@ export default function MatchupsPage() {
   const { roster, matrix, config } = useEngineData();
   const [selected, setSelected] = useState<{ a: string; b: string } | null>(null);
 
-  const a = selected ? getReptilById(selected.a) : null;
-  const b = selected ? getReptilById(selected.b) : null;
+  const a = selected ? roster.find((r) => r.id === selected.a) : null;
+  const b = selected ? roster.find((r) => r.id === selected.b) : null;
   const matchup = a && b ? calculateMatchup(a, b, config) : null;
   const label = matchup ? classifyMatchupMargin(Math.max(matchup.probabilidadAtacante, matchup.probabilidadDefensor)) : null;
 

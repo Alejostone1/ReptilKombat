@@ -3,15 +3,9 @@
 import { Radar, RadarChart, PolarGrid, PolarAngleAxis, ResponsiveContainer, Tooltip, Legend } from "recharts";
 import type { Reptil } from "@/types/reptile";
 import { AFFINITIES, AFFINITY_META } from "@/types/affinity";
+import { STAT_LABELS, STAT_ORDER } from "@/lib/game-engine/stat-labels";
 
-const STATS = [
-  { key: "hp", label: "HP" },
-  { key: "atk", label: "ATK" },
-  { key: "def", label: "DEF" },
-  { key: "spd", label: "SPD" },
-  { key: "inst", label: "INST" },
-  { key: "adp", label: "ADP" },
-] as const;
+const STATS = STAT_ORDER.map((key) => ({ key, label: STAT_LABELS[key].corto }));
 
 /** Perfil promedio de estadísticas por afinidad, superpuesto en un único radar. */
 export function AffinityRadarChart({ roster }: { roster: Reptil[] }) {

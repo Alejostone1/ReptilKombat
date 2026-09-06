@@ -8,6 +8,7 @@ import { AFFINITIES } from "@/types/affinity";
 import { useEngineData } from "@/lib/hooks/useEngineData";
 import { calculateBST, calculateDefensiveIndex, calculateMobilityIndex, calculateOffensiveIndex, statMax, statMin } from "@/lib/game-engine/stats";
 import { STAT_THRESHOLDS } from "@/lib/game-engine/config";
+import { STAT_LABELS, STAT_ORDER } from "@/lib/game-engine/stat-labels";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/Card";
 import { Input, Select } from "@/components/ui/Input";
 import { Button } from "@/components/ui/Button";
@@ -140,9 +141,9 @@ export default function NuevoPersonajePage() {
               </Field>
 
               <div className="grid grid-cols-3 gap-3 sm:grid-cols-6">
-                {(["hp", "atk", "def", "spd", "inst", "adp"] as const).map((key) => (
-                  <Field key={key} label={key.toUpperCase()}>
-                    <Input type="number" {...register(key)} />
+                {STAT_ORDER.map((key) => (
+                  <Field key={key} label={`${STAT_LABELS[key].emoji} ${STAT_LABELS[key].largo}`}>
+                    <Input type="number" {...register(key, { valueAsNumber: true })} />
                   </Field>
                 ))}
               </div>

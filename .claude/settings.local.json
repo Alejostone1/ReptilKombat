@@ -11,7 +11,9 @@
       "PowerShell(Stop-Process -Id 3264,19608,22236 -Force -ErrorAction SilentlyContinue)",
       "Bash(npm install *)",
       "Bash(python emit_ts.py)",
-      "Bash(npx vitest *)"
+      "Bash(npx vitest *)",
+      "Bash(npx tsc *)",
+      "Bash(npx eslint *)"
     ]
   }
 }

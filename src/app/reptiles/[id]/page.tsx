@@ -3,10 +3,10 @@
 import { useMemo } from "react";
 import { useParams, notFound } from "next/navigation";
 import Link from "next/link";
-import { getReptilById, getAbilitiesByOwner, ROSTER } from "@/data/roster";
 import { useEngineData } from "@/lib/hooks/useEngineData";
+import { useReptilById, useRoster } from "@/lib/hooks/useRoster";
 import { AffinityBadge } from "@/components/affinities/AffinityBadge";
-import { ReptileImage } from "@/components/reptiles/ReptileImage";
+import { ReptileGallery } from "@/components/reptiles/ReptileGallery";
 import { StatBar } from "@/components/reptiles/StatBar";
 import { StatRadar } from "@/components/charts/StatRadar";
 import { AbilityCard } from "@/components/abilities/AbilityCard";
@@ -16,34 +16,30 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/Card";
 import { Badge } from "@/components/ui/Badge";
 import { getAffinityTier } from "@/lib/game-engine/affinities";
 import { AFFINITIES } from "@/types/affinity";
+import { STAT_LABELS, STAT_ORDER } from "@/lib/game-engine/stat-labels";
 
 export default function ReptilPerfilPage() {
   const params = useParams<{ id: string }>();
-  const reptil = getReptilById(params.id);
-  const { config, auditByReptilId, bestMatchupOf, worstMatchupOf, winRateOf } = useEngineData();
+  const { reptil, loading } = useReptilById(params.id);
+  const { abilitiesByOwner } = useRoster();
+  const { roster, config, auditByReptilId, bestMatchupOf, worstMatchupOf, winRateOf } = useEngineData();
 
-  const habilidades = useMemo(() => (reptil ? getAbilitiesByOwner(reptil.id) : []), [reptil]);
+  const habilidades = useMemo(() => (reptil ? abilitiesByOwner(reptil.id) : []), [reptil, abilitiesByOwner]);
 
+  if (loading) return <PerfilSkeleton />;
   if (!reptil) return notFound();
 
   const audit = auditByReptilId.get(reptil.id);
   const winRate = winRateOf(reptil.id);
   const mejor = bestMatchupOf(reptil.id);
   const peor = worstMatchupOf(reptil.id);
-  const mejorReptil = mejor ? ROSTER.find((r) => r.id === mejor.reptilId) : null;
-  const peorReptil = peor ? ROSTER.find((r) => r.id === peor.reptilId) : null;
+  const mejorReptil = mejor ? roster.find((r) => r.id === mejor.reptilId) : null;
+  const peorReptil = peor ? roster.find((r) => r.id === peor.reptilId) : null;
 
   const ventajas = AFFINITIES.filter((a) => getAffinityTier(reptil.afinidad, a) === "ventaja");
   const debilidades = AFFINITIES.filter((a) => getAffinityTier(reptil.afinidad, a) === "desventaja");
 
-  const radarData = [
-    { label: "HP", a: reptil.hp },
-    { label: "ATK", a: reptil.atk },
-    { label: "DEF", a: reptil.def },
-    { label: "SPD", a: reptil.spd },
-    { label: "INST", a: reptil.inst },
-    { label: "ADP", a: reptil.adp },
-  ];
+  const radarData = STAT_ORDER.map((key) => ({ label: STAT_LABELS[key].corto, a: reptil[key] }));
 
   return (
     <div className="space-y-6">
@@ -53,7 +49,7 @@ export default function ReptilPerfilPage() {
 
       <div className="grid gap-6 lg:grid-cols-[320px_1fr]">
         <div className="space-y-3">
-          <ReptileImage nombre={reptil.nombre} nombreCientifico={reptil.nombreCientifico} className="aspect-square w-full rounded-xl" priority />
+          <ReptileGallery nombre={reptil.nombre} nombreCientifico={reptil.nombreCientifico} />
           <div className="flex flex-wrap gap-2">
             <AffinityBadge afinidad={reptil.afinidad} size="md" />
             {audit && <BalanceStatusBadge estado={audit.estado} />}
@@ -91,12 +87,12 @@ export default function ReptilPerfilPage() {
             <CardTitle>Estadísticas</CardTitle>
           </CardHeader>
           <CardContent className="space-y-2">
-            <StatBar label="HP" value={reptil.hp} colorClass="bg-state-ok" />
-            <StatBar label="ATK" value={reptil.atk} colorClass="bg-affinity-termico" />
-            <StatBar label="DEF" value={reptil.def} colorClass="bg-affinity-acorazado" />
-            <StatBar label="SPD" value={reptil.spd} colorClass="bg-affinity-agil" />
-            <StatBar label="INST" value={reptil.inst} colorClass="bg-affinity-sensorial" />
-            <StatBar label="ADP" value={reptil.adp} colorClass="bg-affinity-venenoso" />
+            <StatBar statKey="hp" value={reptil.hp} colorClass="bg-state-ok" />
+            <StatBar statKey="atk" value={reptil.atk} colorClass="bg-affinity-termico" />
+            <StatBar statKey="def" value={reptil.def} colorClass="bg-affinity-acorazado" />
+            <StatBar statKey="spd" value={reptil.spd} colorClass="bg-affinity-agil" />
+            <StatBar statKey="inst" value={reptil.inst} colorClass="bg-affinity-sensorial" />
+            <StatBar statKey="adp" value={reptil.adp} colorClass="bg-affinity-venenoso" />
             <div className="grid grid-cols-3 gap-2 pt-3 text-center">
               <IndexBadge label="Ofensivo" value={reptil.indiceOfensivo} />
               <IndexBadge label="Defensivo" value={reptil.indiceDefensivo} />
@@ -202,6 +198,19 @@ function IndexBadge({ label, value }: { label: string; value: number }) {
     <div className="rounded-lg bg-panel-secondary p-2">
       <p className="text-[10px] text-foreground-muted">{label}</p>
       <p className="font-mono font-semibold text-foreground">{value}</p>
+    </div>
+  );
+}
+
+function PerfilSkeleton() {
+  return (
+    <div className="grid gap-6 lg:grid-cols-[320px_1fr]">
+      <div className="aspect-square animate-pulse rounded-xl bg-panel-secondary" />
+      <div className="space-y-3">
+        <div className="h-8 w-64 animate-pulse rounded bg-panel-secondary" />
+        <div className="h-4 w-40 animate-pulse rounded bg-panel-secondary" />
+        <div className="h-24 w-full animate-pulse rounded bg-panel-secondary" />
+      </div>
     </div>
   );
 }

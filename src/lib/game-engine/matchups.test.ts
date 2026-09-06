@@ -1,8 +1,14 @@
 import { describe, it, expect } from "vitest";
-import { ROSTER } from "@/data/roster";
+import { REPTILES_BASE } from "@/data/reptiles";
+import { ABILITIES } from "@/data/abilities";
+import { buildReptil } from "./stats";
 import { DEFAULT_ENGINE_CONFIG } from "./config";
 import { buildMatchupMatrix, calculateMatchup, calculateWinRate } from "./matchups";
 import { auditRoster, calculateMetaHealth } from "./balance";
+
+// El motor se valida contra los datos semilla directamente (sin Supabase):
+// estos tests deben poder correr sin red y sin depender de la base de datos.
+const ROSTER = REPTILES_BASE.map((base) => buildReptil(base, ABILITIES));
 
 describe("motor de matchups", () => {
   it("un personaje contra sí mismo siempre es 50% / 50%", () => {

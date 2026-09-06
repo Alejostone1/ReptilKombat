@@ -3,15 +3,18 @@
 import { Bar, BarChart, CartesianGrid, Legend, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
 import type { Reptil } from "@/types/reptile";
 import { AFFINITIES } from "@/types/affinity";
+import { STAT_LABELS, STAT_ORDER } from "@/lib/game-engine/stat-labels";
 
-const STAT_KEYS = [
-  { key: "hp", label: "HP", color: "#35C46A" },
-  { key: "atk", label: "ATK", color: "#E67E22" },
-  { key: "def", label: "DEF", color: "#607D8B" },
-  { key: "spd", label: "SPD", color: "#2ECC71" },
-  { key: "inst", label: "INST", color: "#16A085" },
-  { key: "adp", label: "ADP", color: "#8E44AD" },
-] as const;
+const STAT_COLORS: Record<(typeof STAT_ORDER)[number], string> = {
+  hp: "#35C46A",
+  atk: "#E67E22",
+  def: "#607D8B",
+  spd: "#2ECC71",
+  inst: "#16A085",
+  adp: "#8E44AD",
+};
+
+const STAT_KEYS = STAT_ORDER.map((key) => ({ key, label: STAT_LABELS[key].largo, color: STAT_COLORS[key] }));
 
 export function StatsByAffinityChart({ roster }: { roster: Reptil[] }) {
   const data = AFFINITIES.map((af) => {

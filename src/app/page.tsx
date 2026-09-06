@@ -2,7 +2,7 @@
 
 import { useMemo } from "react";
 import { useEngineData } from "@/lib/hooks/useEngineData";
-import { ABILITIES } from "@/data/abilities";
+import { useRoster } from "@/lib/hooks/useRoster";
 import { KpiCard } from "@/components/dashboard/KpiCard";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/Card";
 import { AffinityDistributionChart } from "@/components/charts/AffinityDistributionChart";
@@ -21,6 +21,7 @@ const META_HEALTH_CONFIG = {
 
 export default function DashboardPage() {
   const { roster, metaHealth, stateCounts, winRateOf } = useEngineData();
+  const { abilities: ABILITIES } = useRoster();
 
   const avgBst = useMemo(() => Math.round(roster.reduce((a, r) => a + r.bst, 0) / roster.length), [roster]);
 

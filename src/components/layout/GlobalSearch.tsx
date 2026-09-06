@@ -3,8 +3,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Command } from "cmdk";
-import { ROSTER } from "@/data/roster";
-import { ABILITIES } from "@/data/abilities";
+import { useRoster } from "@/lib/hooks/useRoster";
 import { AFFINITIES, AFFINITY_META } from "@/types/affinity";
 import { FAMILIES_INFO } from "@/data/families";
 import { Search } from "lucide-react";
@@ -12,6 +11,7 @@ import { Search } from "lucide-react";
 export function GlobalSearch() {
   const [open, setOpen] = useState(false);
   const router = useRouter();
+  const { roster: ROSTER, abilities: ABILITIES } = useRoster();
 
   useEffect(() => {
     function onKeyDown(e: KeyboardEvent) {

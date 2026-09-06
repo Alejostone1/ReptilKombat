@@ -1,8 +1,7 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { ABILITIES } from "@/data/abilities";
-import { getReptilById } from "@/data/roster";
+import { useRoster } from "@/lib/hooks/useRoster";
 import { AFFINITIES } from "@/types/affinity";
 import { Input, Select } from "@/components/ui/Input";
 import { AbilityCard } from "@/components/abilities/AbilityCard";
@@ -11,6 +10,7 @@ const CATEGORIAS = ["Fisica", "Tecnica", "Control", "Estado"] as const;
 type SortKey = "nombre" | "potencia" | "precision";
 
 export function HabilidadesClient({ initialQuery = "" }: { initialQuery?: string }) {
+  const { abilities: ABILITIES, getReptilById } = useRoster();
   const [query, setQuery] = useState(initialQuery);
   const [afinidad, setAfinidad] = useState("");
   const [categoria, setCategoria] = useState("");
@@ -27,7 +27,7 @@ export function HabilidadesClient({ initialQuery = "" }: { initialQuery?: string
       if (sort === "nombre") return x.nombre.localeCompare(y.nombre);
       return y[sort] - x[sort];
     });
-  }, [query, afinidad, categoria, sort]);
+  }, [query, afinidad, categoria, sort, ABILITIES, getReptilById]);
 
   return (
     <div className="space-y-5">

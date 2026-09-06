@@ -2,7 +2,7 @@
 
 import { useMemo, useState } from "react";
 import type { Reptil } from "@/types/reptile";
-import { ROSTER } from "@/data/roster";
+import { useRoster } from "@/lib/hooks/useRoster";
 import { AffinityBadge } from "@/components/affinities/AffinityBadge";
 import { cn } from "@/lib/utils";
 
@@ -16,6 +16,7 @@ interface ReptileSelectorProps {
 export function ReptileSelector({ value, onChange, exclude, placeholder = "Buscar reptil..." }: ReptileSelectorProps) {
   const [query, setQuery] = useState("");
   const [open, setOpen] = useState(false);
+  const { roster: ROSTER } = useRoster();
 
   const selected = ROSTER.find((r) => r.id === value) ?? null;
 
@@ -31,7 +32,7 @@ export function ReptileSelector({ value, onChange, exclude, placeholder = "Busca
           r.afinidad.toLowerCase().includes(q),
       )
       .slice(0, 30);
-  }, [query, exclude]);
+  }, [query, exclude, ROSTER]);
 
   return (
     <div className="relative">

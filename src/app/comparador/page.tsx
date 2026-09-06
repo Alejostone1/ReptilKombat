@@ -1,7 +1,7 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { getReptilById } from "@/data/roster";
+import { useRoster } from "@/lib/hooks/useRoster";
 import { useEngineData } from "@/lib/hooks/useEngineData";
 import { calculateMatchup, classifyMatchupMargin } from "@/lib/game-engine/matchups";
 import { ReptileSelector } from "@/components/reptiles/ReptileSelector";
@@ -11,19 +11,16 @@ import { StatBar } from "@/components/reptiles/StatBar";
 import { StatRadar } from "@/components/charts/StatRadar";
 import { MatchupCard } from "@/components/combat/MatchupCard";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/Card";
+import { STAT_LABELS, STAT_ORDER } from "@/lib/game-engine/stat-labels";
 
-const STAT_KEYS = [
-  { key: "hp", label: "HP" },
-  { key: "atk", label: "ATK" },
-  { key: "def", label: "DEF" },
-  { key: "spd", label: "SPD" },
-  { key: "inst", label: "INST" },
-  { key: "adp", label: "ADP" },
-  { key: "bst", label: "BST" },
-] as const;
+const STAT_KEYS = [...STAT_ORDER.map((key) => ({ key, label: `${STAT_LABELS[key].emoji} ${STAT_LABELS[key].largo}` })), {
+  key: "bst" as const,
+  label: "BST",
+}];
 
 export default function ComparadorPage() {
   const { config } = useEngineData();
+  const { getReptilById } = useRoster();
   const [idA, setIdA] = useState<string | null>("dragon-barbudo");
   const [idB, setIdB] = useState<string | null>("uromastyx");
 
@@ -34,16 +31,7 @@ export default function ComparadorPage() {
   const label = matchupAB ? classifyMatchupMargin(Math.max(matchupAB.probabilidadAtacante, matchupAB.probabilidadDefensor)) : null;
 
   const radarData =
-    a && b
-      ? [
-          { label: "HP", a: a.hp, b: b.hp },
-          { label: "ATK", a: a.atk, b: b.atk },
-          { label: "DEF", a: a.def, b: b.def },
-          { label: "SPD", a: a.spd, b: b.spd },
-          { label: "INST", a: a.inst, b: b.inst },
-          { label: "ADP", a: a.adp, b: b.adp },
-        ]
-      : [];
+    a && b ? STAT_ORDER.map((key) => ({ label: STAT_LABELS[key].corto, a: a[key], b: b[key] })) : [];
 
   return (
     <div className="space-y-6">
@@ -124,10 +112,10 @@ export default function ComparadorPage() {
                   </tbody>
                 </table>
                 <div className="space-y-2">
-                  {STAT_KEYS.slice(0, 6).map((s) => (
-                    <div key={s.key} className="grid grid-cols-2 gap-2">
-                      <StatBar label={s.label} value={a[s.key]} colorClass="bg-affinity-agil" compact />
-                      <StatBar label={s.label} value={b[s.key]} colorClass="bg-affinity-termico" compact />
+                  {STAT_ORDER.map((key) => (
+                    <div key={key} className="grid grid-cols-2 gap-2">
+                      <StatBar statKey={key} value={a[key]} colorClass="bg-affinity-agil" compact />
+                      <StatBar statKey={key} value={b[key]} colorClass="bg-affinity-termico" compact />
                     </div>
                   ))}
                 </div>

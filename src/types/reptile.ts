@@ -33,6 +33,9 @@ export interface ReptilBase {
 
   pasiva?: string;
 
+  /** Solo relevante en /admin: si es false, el reptil no aparece en el roster público ni en cálculos. */
+  activo?: boolean;
+
   fechaCreacion?: string;
 }
 

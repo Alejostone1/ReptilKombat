@@ -10,6 +10,9 @@ const nextConfig: NextConfig = {
       { protocol: "https", hostname: "upload.wikimedia.org" },
       { protocol: "https", hostname: "commons.wikimedia.org" },
       { protocol: "https", hostname: "*.wikipedia.org" },
+      { protocol: "https", hostname: "*.inaturalist.org" },
+      { protocol: "https", hostname: "inaturalist-open-data.s3.amazonaws.com" },
+      { protocol: "https", hostname: "*.gbif.org" },
     ],
   },
 };

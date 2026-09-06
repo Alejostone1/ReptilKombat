@@ -1,12 +1,14 @@
 @import "tailwindcss";
 
 :root {
-  --background: #07120f;
-  --panel: #0d1c18;
-  --panel-secondary: #122720;
-  --border-subtle: #1c332c;
-  --foreground: #e8f3ee;
-  --foreground-muted: #8fa89c;
+  /* Paleta "oscuro pero menos negro": selva nocturna en vez de casi-negro,
+     manteniendo la identidad verde y la estética gaming/científica. */
+  --background: #101e1a;
+  --panel: #182a22;
+  --panel-secondary: #20362b;
+  --border-subtle: #2c4a3c;
+  --foreground: #edf5f0;
+  --foreground-muted: #9fb9ac;
   --reptile-green: #35c46a;
 
   --affinity-termico: #e67e22;

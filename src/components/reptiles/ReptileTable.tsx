@@ -15,6 +15,12 @@ import { AffinityBadge } from "@/components/affinities/AffinityBadge";
 import { BalanceStatusBadge } from "@/components/ui/BalanceStatusBadge";
 import { ReptileImage } from "./ReptileImage";
 import { ArrowDown, ArrowUp, ArrowUpDown } from "lucide-react";
+import { STAT_LABELS, type StatKey } from "@/lib/game-engine/stat-labels";
+
+function statHeader(key: StatKey) {
+  const label = STAT_LABELS[key];
+  return <span title={`${label.largo} (${label.corto})`}>{label.corto}</span>;
+}
 
 interface Row extends Reptil {
   estado: EstadoBalance;
@@ -58,12 +64,12 @@ export function ReptileTable({ data }: { data: Row[] }) {
         cell: (info) => <AffinityBadge afinidad={info.getValue()} />,
       }),
       columnHelper.accessor("rolTactico", { header: "Rol" }),
-      columnHelper.accessor("hp", { header: "HP" }),
-      columnHelper.accessor("atk", { header: "ATK" }),
-      columnHelper.accessor("def", { header: "DEF" }),
-      columnHelper.accessor("spd", { header: "SPD" }),
-      columnHelper.accessor("inst", { header: "INST" }),
-      columnHelper.accessor("adp", { header: "ADP" }),
+      columnHelper.accessor("hp", { header: () => statHeader("hp") }),
+      columnHelper.accessor("atk", { header: () => statHeader("atk") }),
+      columnHelper.accessor("def", { header: () => statHeader("def") }),
+      columnHelper.accessor("spd", { header: () => statHeader("spd") }),
+      columnHelper.accessor("inst", { header: () => statHeader("inst") }),
+      columnHelper.accessor("adp", { header: () => statHeader("adp") }),
       columnHelper.accessor("bst", {
         header: "BST",
         cell: (info) => <span className="font-mono font-semibold text-foreground">{info.getValue()}</span>,

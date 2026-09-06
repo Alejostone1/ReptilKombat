@@ -3,7 +3,6 @@
 import { useMemo, useState } from "react";
 import Link from "next/link";
 import { useEngineData } from "@/lib/hooks/useEngineData";
-import { getReptilById } from "@/data/roster";
 import { AffinityBadge } from "@/components/affinities/AffinityBadge";
 import { BalanceStatusBadge } from "@/components/ui/BalanceStatusBadge";
 import { Badge } from "@/components/ui/Badge";
@@ -13,7 +12,7 @@ import { Tabs } from "@/components/ui/Tabs";
 type Filtro = "TODOS" | "APTO" | "REVISAR" | "RIESGO_ALTO";
 
 export default function AuditoriaPage() {
-  const { audits, metaHealth } = useEngineData();
+  const { audits, metaHealth, roster } = useEngineData();
   const [filtro, setFiltro] = useState<Filtro>("TODOS");
 
   const visibles = useMemo(() => (filtro === "TODOS" ? audits : audits.filter((a) => a.estado === filtro)), [audits, filtro]);
@@ -69,7 +68,7 @@ export default function AuditoriaPage() {
               </thead>
               <tbody>
                 {visibles.map((a) => {
-                  const reptil = getReptilById(a.reptilId)!;
+                  const reptil = roster.find((r) => r.id === a.reptilId)!;
                   return (
                     <tr key={a.reptilId} className="border-t border-border-subtle">
                       <td className="px-3 py-2">
