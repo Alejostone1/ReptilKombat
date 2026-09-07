@@ -4,12 +4,18 @@ import type { EngineConfig } from "@/lib/game-engine/config";
 import { calculateDamage } from "@/lib/game-engine/damage";
 import { getAffinityTier } from "@/lib/game-engine/affinities";
 import type { GameState, Lado } from "./types";
-import { puedeInvocar, puedeAtacar, habilidadesDisponibles } from "./engine";
+import { puedeInvocar, puedeAtacar, habilidadesDisponibles, puedeUsarHabilidad } from "./engine";
 
 export type AccionIA = { tipo: "invocar"; reptilId: string } | { tipo: "atacar"; habilidadId: string };
 
+/** Sesgo de personalidad sobre el mismo scoring: solo reordena preferencias, no reescribe la lógica. */
+export type PersonalidadIA = "equilibrada" | "agresiva" | "defensiva" | "estrategica";
+
 const HP_BAJO_UMBRAL = 0.35;
-const CATEGORIAS_DEFENSIVAS = new Set(["Control", "Estado"]);
+// Estado = autobuff/curación: la jugada realmente defensiva a HP bajo.
+// Control = debuff/veneno sobre el rival: utilidad ofensiva, no de supervivencia propia.
+const CATEGORIA_DEFENSIVA = "Estado";
+const CATEGORIA_UTILIDAD = "Control";
 
 /**
  * Decide la siguiente acción de la IA para el lado `ladoIA`, cuando es su turno.
@@ -23,6 +29,7 @@ export function decidirAccionIA(
   abilities: Habilidad[],
   config: EngineConfig,
   ladoIA: Lado,
+  personalidad: PersonalidadIA = "equilibrada",
 ): AccionIA | null {
   if (state.turno !== ladoIA || state.fase === "terminado") return null;
 
@@ -48,21 +55,32 @@ export function decidirAccionIA(
   if (puedeAtacar(state)) {
     const atacante = propio.activo ? roster.find((r) => r.id === propio.activo!.reptilId) : null;
     const defensorBase = rival.activo ? roster.find((r) => r.id === rival.activo!.reptilId) : null;
-    const disponibles = habilidadesDisponibles(state, abilities);
+    // Nunca elige una habilidad en cooldown o sin energía suficiente: mismo gate que usa la UI humana.
+    const disponibles = habilidadesDisponibles(state, abilities).filter((h) => puedeUsarHabilidad(propio.activo!, h));
     if (!atacante || !defensorBase || !propio.activo || !rival.activo || disponibles.length === 0) return null;
 
     const defensorConHp: Reptil = { ...defensorBase, hp: rival.activo.hpActual };
+    const tierPropio = getAffinityTier(atacante.afinidad, defensorBase.afinidad);
     const opciones = disponibles.map((h) => ({
       habilidad: h,
       resultado: calculateDamage(atacante, defensorConHp, h, config),
     }));
     opciones.sort((a, b) => b.resultado.danoEsperado - a.resultado.danoEsperado);
 
-    const hpBajo = propio.activo.hpActual / atacante.hp < HP_BAJO_UMBRAL;
-    if (hpBajo) {
-      const defensiva = opciones.find((o) => CATEGORIAS_DEFENSIVAS.has(o.habilidad.categoria));
+    const umbralHpBajo = personalidad === "defensiva" ? 0.5 : personalidad === "agresiva" ? 0.15 : HP_BAJO_UMBRAL;
+    const hpBajo = propio.activo.hpActual / atacante.hp < umbralHpBajo;
+
+    if (hpBajo && personalidad !== "agresiva") {
+      const defensiva = opciones.find((o) => o.habilidad.categoria === CATEGORIA_DEFENSIVA);
       if (defensiva) return { tipo: "atacar", habilidadId: defensiva.habilidad.id };
     }
+
+    if (personalidad === "estrategica" && tierPropio === "ventaja") {
+      // Con ventaja de afinidad ya asegurada, prioriza debilitar aún más al rival en vez de solo maximizar daño puntual.
+      const utilidad = opciones.find((o) => o.habilidad.categoria === CATEGORIA_UTILIDAD);
+      if (utilidad) return { tipo: "atacar", habilidadId: utilidad.habilidad.id };
+    }
+
     return { tipo: "atacar", habilidadId: opciones[0].habilidad.id };
   }
 

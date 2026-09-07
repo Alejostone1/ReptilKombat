@@ -19,6 +19,10 @@ export const reptileInputSchema = z.object({
   spd: z.coerce.number().min(1).max(150),
   inst: z.coerce.number().min(1).max(150),
   adp: z.coerce.number().min(1).max(150),
+  energiaMax: z.coerce.number().min(50).max(200),
+  criticoProbabilidad: z.coerce.number().min(0).max(50),
+  /** Override manual de la imagen (columna ya existente). null = restaura la fuente automática (Wikipedia/iNaturalist/GBIF). */
+  imagenUrl: z.string().nullable().optional(),
 });
 
 export type ReptileInput = z.infer<typeof reptileInputSchema>;
@@ -28,6 +32,8 @@ export const reptilePatchSchema = reptileInputSchema.partial().extend({
 });
 
 export type ReptilePatch = z.infer<typeof reptilePatchSchema>;
+
+export const TIPOS_EFECTO = ["veneno", "debuff_atk", "debuff_def", "buff_atk", "buff_def", "buff_spd", "curacion"] as const;
 
 export const abilityInputSchema = z.object({
   nombre: z.string().min(2, "Requerido"),
@@ -40,6 +46,11 @@ export const abilityInputSchema = z.object({
   cooldown: z.coerce.number().optional(),
   prioridad: z.coerce.number().optional(),
   descripcion: z.string().optional(),
+  costoEnergia: z.coerce.number().min(0).max(100).optional(),
+  cooldownTurnos: z.coerce.number().min(0).max(6).optional(),
+  tipoEfecto: z.enum(TIPOS_EFECTO).nullable().optional(),
+  efectoMagnitud: z.coerce.number().min(0).max(100).nullable().optional(),
+  efectoTurnos: z.coerce.number().min(0).max(6).nullable().optional(),
 });
 
 export type AbilityInput = z.infer<typeof abilityInputSchema>;

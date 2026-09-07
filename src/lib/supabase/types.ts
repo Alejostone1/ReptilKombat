@@ -33,6 +33,11 @@ export interface Database {
         Insert: Partial<GameMoveRow>;
         Update: Partial<GameMoveRow>;
       };
+      match_results: {
+        Row: MatchResultRow;
+        Insert: Partial<MatchResultRow> & Pick<MatchResultRow, "ganador_lado" | "reptiles_a" | "reptiles_b" | "turnos">;
+        Update: Partial<MatchResultRow>;
+      };
     };
   };
 }
@@ -58,10 +63,21 @@ export interface ReptileRow {
   spd: number;
   inst: number;
   adp: number;
+  energia_max: number;
+  critico_probabilidad: number;
   pasiva: string | null;
   activo: boolean;
   fecha_creacion: string;
 }
+
+export type TipoEfecto =
+  | "veneno"
+  | "debuff_atk"
+  | "debuff_def"
+  | "buff_atk"
+  | "buff_def"
+  | "buff_spd"
+  | "curacion";
 
 export interface AbilityRow {
   id: string;
@@ -75,6 +91,11 @@ export interface AbilityRow {
   cooldown: number | null;
   prioridad: number | null;
   descripcion: string | null;
+  costo_energia: number;
+  cooldown_turnos: number;
+  tipo_efecto: TipoEfecto | null;
+  efecto_magnitud: number | null;
+  efecto_turnos: number | null;
 }
 
 export interface EngineConfigRow {
@@ -88,6 +109,11 @@ export interface EngineConfigRow {
   win_rate_debil: number;
   offset_atk_def: number;
   divisor_dano: number;
+  categoria_normal_mult: number;
+  categoria_especial_mult: number;
+  categoria_control_mult: number;
+  critico_multiplicador: number;
+  energia_regen_turno: number;
 }
 
 export type EstadoSala = "WAITING" | "READY" | "IN_PROGRESS" | "FINISHED" | "CANCELLED";
@@ -132,4 +158,15 @@ export interface MatchmakingQueueRow {
   mazo: string[];
   creado_en: string;
   emparejado_codigo: string | null;
+}
+
+export interface MatchResultRow {
+  id: string;
+  room_id: string | null;
+  ganador_lado: "A" | "B";
+  reptiles_a: string[];
+  reptiles_b: string[];
+  turnos: number;
+  duracion_segundos: number | null;
+  creado_en: string;
 }

@@ -6,7 +6,15 @@ import { motion, AnimatePresence } from "framer-motion";
 import { useRoster } from "@/lib/hooks/useRoster";
 import { useEngineData } from "@/lib/hooks/useEngineData";
 import { useGameStore } from "@/lib/store/game-store";
-import { puedeInvocar, puedeAtacar, habilidadesDisponibles } from "@/lib/card-game/engine";
+import {
+  puedeInvocar,
+  puedeAtacar,
+  habilidadesDisponibles,
+  puedeUsarHabilidad,
+  reptilDesdeStats,
+  multiplicadorEstado,
+  configuracionARosterYHabilidades,
+} from "@/lib/card-game/engine";
 import { decidirAccionIA } from "@/lib/card-game/ai";
 import { calculateDamage } from "@/lib/game-engine/damage";
 import { getAffinityTier } from "@/lib/game-engine/affinities";
@@ -31,7 +39,7 @@ export default function MesaPage() {
   const router = useRouter();
   const { roster, abilities } = useRoster();
   const { config } = useEngineData();
-  const { state, ultimoResultado, ultimoDerrotado, pantallaTransicion, modoIA, ladoIA, invocar, atacar, confirmarTurno, reiniciar } =
+  const { state, ultimoResultado, ultimoDerrotado, pantallaTransicion, modoIA, ladoIA, personalidadIA, invocar, atacar, confirmarTurno, reiniciar } =
     useGameStore();
   const [sacudirLado, setSacudirLado] = useState<Lado | null>(null);
   const [ultimaInvocacion, setUltimaInvocacion] = useState<Lado | null>(null);
@@ -47,7 +55,9 @@ export default function MesaPage() {
     if (iaJugando.current) return;
     iaJugando.current = true;
     const t = setTimeout(() => {
-      const accion = decidirAccionIA(state, roster, abilities, config, ladoIA);
+      // La IA decide siempre con el snapshot congelado de la partida, nunca con el roster en vivo.
+      const { roster: rosterSnapshot, abilities: abilitiesSnapshot } = configuracionARosterYHabilidades(state.configuracion);
+      const accion = decidirAccionIA(state, rosterSnapshot, abilitiesSnapshot, config, ladoIA, personalidadIA);
       if (accion?.tipo === "invocar") {
         invocar(accion.reptilId, roster);
         setUltimaInvocacion(ladoIA);
@@ -61,30 +71,38 @@ export default function MesaPage() {
       iaJugando.current = false;
     }, 900);
     return () => clearTimeout(t);
-  }, [modoIA, ladoIA, state, pantallaTransicion, roster, abilities, config, invocar, atacar, confirmarTurno]);
+  }, [modoIA, ladoIA, personalidadIA, state, pantallaTransicion, roster, abilities, config, invocar, atacar, confirmarTurno]);
 
   const habilidadesTurno = useMemo(() => (state ? habilidadesDisponibles(state, abilities) : []), [state, abilities]);
 
   // Vista previa de daño/efectividad por habilidad, para saber cuál conviene usar antes de atacar.
+  // Siempre lee del snapshot congelado en state.configuracion — nunca del roster en vivo — para que
+  // el número mostrado nunca pueda desincronizarse de lo que atacar() va a aplicar de verdad.
   const previews = useMemo(() => {
     if (!state) return [];
     const ladoAtacante = state.turno;
     const ladoDefensor: Lado = ladoAtacante === "A" ? "B" : "A";
     const jugadorAtacante = ladoAtacante === "A" ? state.jugadorA : state.jugadorB;
     const jugadorDefensor = ladoDefensor === "A" ? state.jugadorA : state.jugadorB;
-    const atacante = jugadorAtacante.activo ? roster.find((r) => r.id === jugadorAtacante.activo!.reptilId) : null;
-    const defensorBase = jugadorDefensor.activo ? roster.find((r) => r.id === jugadorDefensor.activo!.reptilId) : null;
-    if (!atacante || !defensorBase || !jugadorDefensor.activo) return [];
+    const atacanteStats = jugadorAtacante.activo ? state.configuracion.reptiles[jugadorAtacante.activo.reptilId] : null;
+    const defensorStats = jugadorDefensor.activo ? state.configuracion.reptiles[jugadorDefensor.activo.reptilId] : null;
+    if (!atacanteStats || !defensorStats || !jugadorAtacante.activo || !jugadorDefensor.activo) return [];
 
-    const defensorConHp = { ...defensorBase, hp: jugadorDefensor.activo.hpActual };
-    const tier = getAffinityTier(atacante.afinidad, defensorBase.afinidad);
+    const atacante = reptilDesdeStats(atacanteStats, { atk: Math.round(atacanteStats.atk * multiplicadorEstado(jugadorAtacante.activo, "atk")) });
+    const defensor = reptilDesdeStats(defensorStats, {
+      hp: jugadorDefensor.activo.hpActual,
+      def: Math.round(defensorStats.def * multiplicadorEstado(jugadorDefensor.activo, "def")),
+    });
+    const tier = getAffinityTier(atacanteStats.afinidad, defensorStats.afinidad);
     const resultados = habilidadesTurno.map((h) => ({
       habilidad: h,
       tier,
-      resultado: calculateDamage(atacante, defensorConHp, h, config),
+      resultado: calculateDamage(atacante, defensor, h, config),
+      disponible: puedeUsarHabilidad(jugadorAtacante.activo!, h),
+      cooldownRestante: jugadorAtacante.activo!.cooldowns[h.id] ?? 0,
     }));
-    return resultados.sort((a, b) => b.resultado.danoEsperado - a.resultado.danoEsperado);
-  }, [state, roster, habilidadesTurno, config]);
+    return resultados.sort((a, b) => Number(b.disponible) - Number(a.disponible) || b.resultado.danoEsperado - a.resultado.danoEsperado);
+  }, [state, habilidadesTurno, config]);
 
   if (!state) {
     return (
@@ -109,8 +127,8 @@ export default function MesaPage() {
     setTimeout(() => setUltimaInvocacion(null), 700);
   }
 
-  function onAtacar(habilidadId: string) {
-    if (!state) return;
+  function onAtacar(habilidadId: string, disponible: boolean) {
+    if (!state || !disponible) return;
     const ladoDefensor: Lado = state.turno === "A" ? "B" : "A";
     atacar(habilidadId, roster, abilities, config);
     setSacudirLado(ladoDefensor);
@@ -157,26 +175,34 @@ export default function MesaPage() {
             )}
             {atacarDisponible && (
               <div className="grid gap-2 sm:grid-cols-2">
-                {previews.map(({ habilidad: h, tier, resultado }, i) => (
+                {previews.map(({ habilidad: h, tier, resultado, disponible, cooldownRestante }, i) => (
                   <button
                     key={h.id}
-                    onClick={() => onAtacar(h.id)}
+                    onClick={() => onAtacar(h.id, disponible)}
+                    disabled={!disponible}
                     className={cn(
-                      "flex flex-col gap-2 rounded-lg border bg-panel-secondary px-3 py-3 text-left transition-colors hover:border-reptile-green/60 sm:flex-row sm:items-center sm:justify-between",
-                      i === 0 ? "border-reptile-green/50" : "border-border-subtle",
+                      "flex flex-col gap-2 rounded-lg border bg-panel-secondary px-3 py-3 text-left transition-colors",
+                      disponible ? "hover:border-reptile-green/60" : "cursor-not-allowed opacity-40",
+                      i === 0 && disponible ? "border-reptile-green/50" : "border-border-subtle",
+                      "sm:flex-row sm:items-center sm:justify-between",
                     )}
                   >
                     <span className="min-w-0">
                       <span className="flex items-center gap-1.5">
                         <span className="truncate font-semibold text-foreground">{h.nombre}</span>
-                        {i === 0 && <Badge tone="ok">★ Mejor opción</Badge>}
+                        {i === 0 && disponible && <Badge tone="ok">★ Mejor opción</Badge>}
                       </span>
                       <span className="block text-xs text-foreground-muted">{h.efecto}</span>
                     </span>
                     <span className="flex shrink-0 flex-wrap items-center gap-1.5 text-xs sm:flex-col sm:items-end">
                       <Badge tone={TIER_INFO[tier].tone}>{TIER_INFO[tier].label}</Badge>
                       <Badge tone="accent">≈{Math.round(resultado.danoEsperado)} daño</Badge>
-                      <Badge>{resultado.porcentajeHP.toFixed(0)}% HP</Badge>
+                      {h.costoEnergia > 0 && <Badge>⚡{h.costoEnergia}</Badge>}
+                      {cooldownRestante > 0 ? (
+                        <Badge tone="danger">⏱️ {cooldownRestante}</Badge>
+                      ) : h.cooldownTurnos > 0 ? (
+                        <Badge tone="ok">✅ Lista</Badge>
+                      ) : null}
                     </span>
                   </button>
                 ))}

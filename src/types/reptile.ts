@@ -31,6 +31,11 @@ export interface ReptilBase {
   inst: number;
   adp: number;
 
+  /** Energía máxima disponible por combate: gasta al usar ataques Especial/Control/Estado. */
+  energiaMax: number;
+  /** Probabilidad (%) de que cualquier ataque de este reptil sea crítico. */
+  criticoProbabilidad: number;
+
   pasiva?: string;
 
   /** Solo relevante en /admin: si es false, el reptil no aparece en el roster público ni en cálculos. */

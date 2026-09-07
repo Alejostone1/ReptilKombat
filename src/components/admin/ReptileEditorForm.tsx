@@ -37,6 +37,9 @@ const DEFAULTS: ReptileInput = {
   spd: 60,
   inst: 60,
   adp: 60,
+  energiaMax: 100,
+  criticoProbabilidad: 10,
+  imagenUrl: "",
 };
 
 export function ReptileEditorForm({ initial, onSubmit, onCancel, submitLabel }: ReptileEditorFormProps) {
@@ -44,10 +47,12 @@ export function ReptileEditorForm({ initial, onSubmit, onCancel, submitLabel }: 
     register,
     handleSubmit,
     watch,
+    setValue,
     formState: { errors, isSubmitting },
   } = useForm<ReptileInput>({ resolver: zodResolver(reptileInputSchema), defaultValues: { ...DEFAULTS, ...initial } });
 
   const values = watch();
+  const imagenActual = values.imagenUrl;
   const bst = useMemo(() => calculateBST(values), [values]);
   const iOf = useMemo(() => calculateOffensiveIndex(values), [values]);
   const iDef = useMemo(() => calculateDefensiveIndex(values), [values]);
@@ -63,7 +68,10 @@ export function ReptileEditorForm({ initial, onSubmit, onCancel, submitLabel }: 
           <CardTitle>Ficha del reptil</CardTitle>
         </CardHeader>
         <CardContent>
-          <form className="space-y-4" onSubmit={handleSubmit(onSubmit)}>
+          <form
+            className="space-y-4"
+            onSubmit={handleSubmit((data) => onSubmit({ ...data, imagenUrl: data.imagenUrl?.trim() ? data.imagenUrl.trim() : null }))}
+          >
             <div className="grid grid-cols-2 gap-3">
               <Field label="Nombre" error={errors.nombre?.message}>
                 <Input {...register("nombre")} />
@@ -108,12 +116,43 @@ export function ReptileEditorForm({ initial, onSubmit, onCancel, submitLabel }: 
               <Input {...register("pasiva")} />
             </Field>
 
+            <Field label="Imagen">
+              <div className="flex items-center gap-3">
+                {imagenActual ? (
+                  // eslint-disable-next-line @next/next/no-img-element -- preview simple en admin, no forma parte del pipeline de imágenes optimizadas del sitio.
+                  <img src={imagenActual} alt="Preview" className="h-16 w-16 rounded-lg border border-border-subtle object-cover" />
+                ) : (
+                  <div className="flex h-16 w-16 items-center justify-center rounded-lg border border-dashed border-border-subtle text-xs text-foreground-muted">
+                    Auto
+                  </div>
+                )}
+                <div className="flex-1 space-y-1">
+                  <Input {...register("imagenUrl")} placeholder="URL de imagen (vacío = automática por especie)" />
+                  {imagenActual && (
+                    <button
+                      type="button"
+                      onClick={() => setValue("imagenUrl", "")}
+                      className="text-[11px] text-foreground-muted underline decoration-dotted hover:text-foreground"
+                    >
+                      Restaurar imagen automática
+                    </button>
+                  )}
+                </div>
+              </div>
+            </Field>
+
             <div className="grid grid-cols-3 gap-3 sm:grid-cols-6">
               {STAT_ORDER.map((key) => (
                 <Field key={key} label={`${STAT_LABELS[key].emoji} ${STAT_LABELS[key].largo}`}>
                   <Input type="number" {...register(key, { valueAsNumber: true })} />
                 </Field>
               ))}
+              <Field label="⚡ Energía máx." error={errors.energiaMax?.message}>
+                <Input type="number" {...register("energiaMax", { valueAsNumber: true })} />
+              </Field>
+              <Field label="🎯 Crítico (%)" error={errors.criticoProbabilidad?.message}>
+                <Input type="number" {...register("criticoProbabilidad", { valueAsNumber: true })} />
+              </Field>
             </div>
 
             <div className="flex gap-2">

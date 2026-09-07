@@ -17,9 +17,16 @@ export interface DamageResult {
 const VARIANZA_MIN = 0.85;
 const VARIANZA_MAX = 1.0;
 
+/** Multiplicador de daño según la categoría de la habilidad: Normal=1×, Especial=más, Control=menos (compensa con su efecto). */
+function categoriaMultiplicador(categoria: Habilidad["categoria"], config: EngineConfig): number {
+  if (categoria === "Tecnica") return config.categoriaEspecialMult;
+  if (categoria === "Control") return config.categoriaControlMult;
+  return config.categoriaNormalMult;
+}
+
 /**
  * Motor de daño único del proyecto. Fórmula:
- * DañoBase = Potencia × ((ATK + offset) / (DEF + offset)) × MultAfinidad × STAB / divisor
+ * DañoBase = Potencia × ((ATK + offset) / (DEF + offset)) × MultAfinidad × STAB × MultCategoría / divisor
  * DañoEsperado = DañoBase × (Precisión / 100)
  * %HP = (DañoEsperado / HP defensor) × 100
  */
@@ -31,12 +38,14 @@ export function calculateDamage(
 ): DamageResult {
   const multiplicadorAfinidad = getAffinityMultiplier(atacante.afinidad, defensor.afinidad, config);
   const stab = habilidad.afinidad === atacante.afinidad ? config.stab : 1;
+  const multCategoria = categoriaMultiplicador(habilidad.categoria, config);
 
   const danoBase =
     (habilidad.potencia *
       ((atacante.atk + config.offsetAtkDef) / (defensor.def + config.offsetAtkDef)) *
       multiplicadorAfinidad *
-      stab) /
+      stab *
+      multCategoria) /
     config.divisorDano;
 
   const danoMinimo = danoBase * VARIANZA_MIN;

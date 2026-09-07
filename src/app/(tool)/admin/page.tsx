@@ -42,7 +42,15 @@ function AdminHome() {
             <CardHeader>
               <CardTitle>⚔️ Habilidades</CardTitle>
             </CardHeader>
-            <CardContent>Editar potencia, precisión y efectos de las 160 habilidades.</CardContent>
+            <CardContent>Editar potencia, precisión, energía, cooldown y efectos de las 160 habilidades.</CardContent>
+          </Card>
+        </Link>
+        <Link href="/admin/balance">
+          <Card className="p-6 transition-colors hover:border-reptile-green/50">
+            <CardHeader>
+              <CardTitle>📊 Balance</CardTitle>
+            </CardHeader>
+            <CardContent>Win rate y partidas jugadas por reptil, con datos reales de partidas online.</CardContent>
           </Card>
         </Link>
       </div>

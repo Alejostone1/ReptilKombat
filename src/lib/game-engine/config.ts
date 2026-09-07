@@ -23,18 +23,33 @@ export interface EngineConfig {
   offsetAtkDef: number;
   /** Divisor final de la fórmula de daño base. */
   divisorDano: number;
+  /** Multiplicador de daño para ataques Fisica (Normal). */
+  categoriaNormalMult: number;
+  /** Multiplicador de daño para ataques Tecnica (Especial): más potencia, cuesta energía + cooldown. */
+  categoriaEspecialMult: number;
+  /** Multiplicador de daño para ataques Control (debuff/veneno sobre el rival): daño reducido a cambio del efecto. */
+  categoriaControlMult: number;
+  /** Multiplicador de daño cuando un ataque resulta crítico. */
+  criticoMultiplicador: number;
+  /** Energía que regenera el lado que empieza turno, antes de poder actuar. */
+  energiaRegenTurno: number;
 }
 
 export const DEFAULT_ENGINE_CONFIG: EngineConfig = {
-  ventaja: 1.25,
+  ventaja: 1.4,
   neutral: 1.0,
-  desventaja: 0.8,
+  desventaja: 0.7,
   stab: 1.1,
   bstEstandar: 360,
   winRateDominante: 55,
   winRateDebil: 45,
   offsetAtkDef: 20,
-  divisorDano: 10,
+  divisorDano: 4.8,
+  categoriaNormalMult: 1.0,
+  categoriaEspecialMult: 1.3,
+  categoriaControlMult: 0.7,
+  criticoMultiplicador: 1.6,
+  energiaRegenTurno: 20,
 };
 
 /** Pesos fijos de las fórmulas de índices derivados (no editables desde /configuracion). */

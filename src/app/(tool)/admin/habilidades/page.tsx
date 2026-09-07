@@ -20,6 +20,17 @@ export default function AdminHabilidadesPage() {
 }
 
 const CATEGORIAS = ["Fisica", "Tecnica", "Control", "Estado"] as const;
+const TIPOS_EFECTO = ["", "veneno", "debuff_atk", "debuff_def", "buff_atk", "buff_def", "buff_spd", "curacion"] as const;
+const ETIQUETA_EFECTO: Record<string, string> = {
+  "": "— Sin efecto —",
+  veneno: "☠️ Veneno (daño por turno)",
+  debuff_atk: "📉 Reduce ATK rival",
+  debuff_def: "📉 Reduce DEF rival",
+  buff_atk: "📈 Sube ATK propio",
+  buff_def: "📈 Sube DEF propio",
+  buff_spd: "📈 Sube SPD propio",
+  curacion: "💚 Cura HP propio",
+};
 
 function HabilidadesAdmin() {
   const [habilidades, setHabilidades] = useState<Habilidad[]>([]);
@@ -111,9 +122,15 @@ function HabilidadesAdmin() {
                   <th className="px-2 py-2 text-left">Nombre</th>
                   <th className="px-2 py-2 text-left">Propietario</th>
                   <th className="px-2 py-2 text-left">Afinidad</th>
+                  <th className="px-2 py-2 text-left">Categoría</th>
                   <th className="px-2 py-2 text-right">Potencia</th>
                   <th className="px-2 py-2 text-right">Precisión</th>
                   <th className="px-2 py-2 text-left">Efecto</th>
+                  <th className="px-2 py-2 text-left">Efecto real</th>
+                  <th className="px-2 py-2 text-right">Magnitud</th>
+                  <th className="px-2 py-2 text-right">Turnos</th>
+                  <th className="px-2 py-2 text-right">⚡ Energía</th>
+                  <th className="px-2 py-2 text-right">⏱️ Cooldown</th>
                   <th className="px-2 py-2 text-right">Acciones</th>
                 </tr>
               </thead>
@@ -127,6 +144,7 @@ function HabilidadesAdmin() {
                       <td className="px-2 py-1.5">
                         <AffinityBadge afinidad={h.afinidad as Afinidad} />
                       </td>
+                      <td className="px-2 py-1.5 text-xs text-foreground-muted">{h.categoria}</td>
                       <td className="px-2 py-1.5 text-right">
                         <Input
                           type="number"
@@ -148,6 +166,51 @@ function HabilidadesAdmin() {
                           defaultValue={h.efecto}
                           onChange={(e) => actualizarCampo(h.id, "efecto", e.target.value)}
                           className="min-w-40"
+                        />
+                      </td>
+                      <td className="px-2 py-1.5">
+                        <Select
+                          defaultValue={h.tipoEfecto ?? ""}
+                          onChange={(e) => actualizarCampo(h.id, "tipoEfecto", e.target.value === "" ? (null as never) : e.target.value)}
+                          className="min-w-44"
+                        >
+                          {TIPOS_EFECTO.map((t) => (
+                            <option key={t} value={t}>
+                              {ETIQUETA_EFECTO[t]}
+                            </option>
+                          ))}
+                        </Select>
+                      </td>
+                      <td className="px-2 py-1.5 text-right">
+                        <Input
+                          type="number"
+                          defaultValue={h.efectoMagnitud ?? 0}
+                          onChange={(e) => actualizarCampo(h.id, "efectoMagnitud", Number(e.target.value))}
+                          className="w-16 text-right"
+                        />
+                      </td>
+                      <td className="px-2 py-1.5 text-right">
+                        <Input
+                          type="number"
+                          defaultValue={h.efectoTurnos ?? 0}
+                          onChange={(e) => actualizarCampo(h.id, "efectoTurnos", Number(e.target.value))}
+                          className="w-14 text-right"
+                        />
+                      </td>
+                      <td className="px-2 py-1.5 text-right">
+                        <Input
+                          type="number"
+                          defaultValue={h.costoEnergia}
+                          onChange={(e) => actualizarCampo(h.id, "costoEnergia", Number(e.target.value))}
+                          className="w-16 text-right"
+                        />
+                      </td>
+                      <td className="px-2 py-1.5 text-right">
+                        <Input
+                          type="number"
+                          defaultValue={h.cooldownTurnos}
+                          onChange={(e) => actualizarCampo(h.id, "cooldownTurnos", Number(e.target.value))}
+                          className="w-14 text-right"
                         />
                       </td>
                       <td className="px-2 py-1.5 text-right">

@@ -32,7 +32,7 @@ export async function POST(request: Request, { params }: Params) {
   if (jugadoresActuales.some((j) => j.lado === "B")) return jsonError("Esa partida ya tiene dos jugadores.", 409);
 
   // El servidor nunca confía en los ids de mazo que llegan del cliente: valida que existan de verdad.
-  const { roster } = await cargarDatosDeJuego();
+  const { roster, abilities, config } = await cargarDatosDeJuego();
   const idsValidos = new Set(roster.map((r) => r.id));
   if (!body.mazo.every((id) => idsValidos.has(id))) return jsonError("El mazo contiene reptiles inválidos.");
 
@@ -49,7 +49,7 @@ export async function POST(request: Request, { params }: Params) {
   if (errorJugador) return jsonError(errorJugador.message, 500);
 
   const nombreA = jugadoresActuales.find((j) => j.lado === "A")?.nombre ?? "Jugador A";
-  const estadoInicial = crearPartida(sala.mazoA, body.mazo, nombreA, body.nombre);
+  const estadoInicial = crearPartida(sala.mazoA, body.mazo, roster, abilities, config, nombreA, body.nombre);
 
   const { error: errorSala } = await supabase
     .from("game_rooms")

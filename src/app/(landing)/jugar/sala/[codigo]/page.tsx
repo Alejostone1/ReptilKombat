@@ -6,7 +6,7 @@ import Link from "next/link";
 import { useRoster } from "@/lib/hooks/useRoster";
 import { useEngineData } from "@/lib/hooks/useEngineData";
 import { useGameRoom } from "@/lib/hooks/useGameRoom";
-import { puedeInvocar, puedeAtacar, habilidadesDisponibles } from "@/lib/card-game/engine";
+import { puedeInvocar, puedeAtacar, habilidadesDisponibles, puedeUsarHabilidad, reptilDesdeStats, multiplicadorEstado } from "@/lib/card-game/engine";
 import { calculateDamage } from "@/lib/game-engine/damage";
 import { getAffinityTier } from "@/lib/game-engine/affinities";
 import type { MatchupTier } from "@/types/affinity";
@@ -60,19 +60,32 @@ export default function SalaOnlinePage() {
     [room.estado, abilities],
   );
 
+  // Igual que en mesa/page.tsx: lee siempre del snapshot congelado en room.estado.configuracion,
+  // nunca del roster en vivo, para que la preview jamás se desincronice de lo que el servidor aplique.
   const previews = useMemo(() => {
     if (!room.estado || !room.lado || room.estado.turno !== room.lado) return [];
     const propio = room.lado === "A" ? room.estado.jugadorA : room.estado.jugadorB;
     const rival = room.lado === "A" ? room.estado.jugadorB : room.estado.jugadorA;
-    const atacante = propio.activo ? roster.find((r) => r.id === propio.activo!.reptilId) : null;
-    const defensorBase = rival.activo ? roster.find((r) => r.id === rival.activo!.reptilId) : null;
-    if (!atacante || !defensorBase || !rival.activo) return [];
-    const defensorConHp = { ...defensorBase, hp: rival.activo.hpActual };
-    const tier = getAffinityTier(atacante.afinidad, defensorBase.afinidad);
+    const atacanteStats = propio.activo ? room.estado.configuracion.reptiles[propio.activo.reptilId] : null;
+    const defensorStats = rival.activo ? room.estado.configuracion.reptiles[rival.activo.reptilId] : null;
+    if (!atacanteStats || !defensorStats || !propio.activo || !rival.activo) return [];
+
+    const atacante = reptilDesdeStats(atacanteStats, { atk: Math.round(atacanteStats.atk * multiplicadorEstado(propio.activo, "atk")) });
+    const defensor = reptilDesdeStats(defensorStats, {
+      hp: rival.activo.hpActual,
+      def: Math.round(defensorStats.def * multiplicadorEstado(rival.activo, "def")),
+    });
+    const tier = getAffinityTier(atacanteStats.afinidad, defensorStats.afinidad);
     return habilidadesTurno
-      .map((h) => ({ habilidad: h, tier, resultado: calculateDamage(atacante, defensorConHp, h, config) }))
-      .sort((a, b) => b.resultado.danoEsperado - a.resultado.danoEsperado);
-  }, [room.estado, room.lado, roster, habilidadesTurno, config]);
+      .map((h) => ({
+        habilidad: h,
+        tier,
+        resultado: calculateDamage(atacante, defensor, h, config),
+        disponible: puedeUsarHabilidad(propio.activo!, h),
+        cooldownRestante: propio.activo!.cooldowns[h.id] ?? 0,
+      }))
+      .sort((a, b) => Number(b.disponible) - Number(a.disponible) || b.resultado.danoEsperado - a.resultado.danoEsperado);
+  }, [room.estado, room.lado, habilidadesTurno, config]);
 
   if (viewToken === undefined) return null;
 
@@ -154,7 +167,8 @@ export default function SalaOnlinePage() {
   const atacarDisponible = esMiTurno && puedeAtacar(room.estado);
   const miJugador = room.lado === "A" ? room.estado.jugadorA : room.estado.jugadorB;
 
-  function onAtacar(habilidadId: string) {
+  function onAtacar(habilidadId: string, disponible: boolean) {
+    if (!disponible) return;
     setSacudir(true);
     room.atacar(habilidadId);
     setTimeout(() => setSacudir(false), 500);
@@ -228,26 +242,34 @@ export default function SalaOnlinePage() {
             )}
             {atacarDisponible && (
               <div className="grid gap-2 sm:grid-cols-2">
-                {previews.map(({ habilidad: h, tier, resultado }, i) => (
+                {previews.map(({ habilidad: h, tier, resultado, disponible, cooldownRestante }, i) => (
                   <button
                     key={h.id}
-                    onClick={() => onAtacar(h.id)}
+                    onClick={() => onAtacar(h.id, disponible)}
+                    disabled={!disponible}
                     className={cn(
-                      "flex flex-col gap-2 rounded-lg border bg-panel-secondary px-3 py-3 text-left transition-colors hover:border-reptile-green/60 sm:flex-row sm:items-center sm:justify-between",
-                      i === 0 ? "border-reptile-green/50" : "border-border-subtle",
+                      "flex flex-col gap-2 rounded-lg border bg-panel-secondary px-3 py-3 text-left transition-colors",
+                      disponible ? "hover:border-reptile-green/60" : "cursor-not-allowed opacity-40",
+                      i === 0 && disponible ? "border-reptile-green/50" : "border-border-subtle",
+                      "sm:flex-row sm:items-center sm:justify-between",
                     )}
                   >
                     <span className="min-w-0">
                       <span className="flex items-center gap-1.5">
                         <span className="truncate font-semibold text-foreground">{h.nombre}</span>
-                        {i === 0 && <Badge tone="ok">★ Mejor opción</Badge>}
+                        {i === 0 && disponible && <Badge tone="ok">★ Mejor opción</Badge>}
                       </span>
                       <span className="block text-xs text-foreground-muted">{h.efecto}</span>
                     </span>
                     <span className="flex shrink-0 flex-wrap items-center gap-1.5 text-xs sm:flex-col sm:items-end">
                       <Badge tone={TIER_INFO[tier].tone}>{TIER_INFO[tier].label}</Badge>
                       <Badge tone="accent">≈{Math.round(resultado.danoEsperado)} daño</Badge>
-                      <Badge>{resultado.porcentajeHP.toFixed(0)}% HP</Badge>
+                      {h.costoEnergia > 0 && <Badge>⚡{h.costoEnergia}</Badge>}
+                      {cooldownRestante > 0 ? (
+                        <Badge tone="danger">⏱️ {cooldownRestante}</Badge>
+                      ) : h.cooldownTurnos > 0 ? (
+                        <Badge tone="ok">✅ Lista</Badge>
+                      ) : null}
                     </span>
                   </button>
                 ))}

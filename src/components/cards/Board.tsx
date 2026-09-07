@@ -65,6 +65,8 @@ export function Board({ gameState, roster, sacudirLado, ultimaInvocacion, ultimo
             <GameCard
               reptil={reptilA}
               hpActual={gameState.jugadorA.activo?.hpActual}
+              energiaActual={gameState.jugadorA.activo?.energiaActual}
+              energiaMax={gameState.configuracion.reptiles[reptilA.id]?.energiaMax}
               size="lg"
               sacudir={sacudirLado === "A"}
               animarEntrada={ultimaInvocacion === "A"}
@@ -83,6 +85,8 @@ export function Board({ gameState, roster, sacudirLado, ultimaInvocacion, ultimo
             <GameCard
               reptil={reptilB}
               hpActual={gameState.jugadorB.activo?.hpActual}
+              energiaActual={gameState.jugadorB.activo?.energiaActual}
+              energiaMax={gameState.configuracion.reptiles[reptilB.id]?.energiaMax}
               size="lg"
               sacudir={sacudirLado === "B"}
               animarEntrada={ultimaInvocacion === "B"}

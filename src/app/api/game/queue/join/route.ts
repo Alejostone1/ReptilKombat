@@ -19,7 +19,7 @@ export async function POST(request: Request) {
     return jsonError(`El mazo debe tener entre 1 y ${MAX_CARTAS_MAZO} reptiles.`);
   }
 
-  const { roster } = await cargarDatosDeJuego();
+  const { roster, abilities, config } = await cargarDatosDeJuego();
   const idsValidos = new Set(roster.map((r) => r.id));
   if (!body.mazo.every((id) => idsValidos.has(id))) return jsonError("El mazo contiene reptiles inválidos.");
 
@@ -55,7 +55,7 @@ export async function POST(request: Request) {
   }
 
   // Emparejado: el oponente que ya esperaba pasa a ser el lado A (llegó primero).
-  const estadoInicial = crearPartida(oponente.mazo, body.mazo, oponente.nombre, body.nombre);
+  const estadoInicial = crearPartida(oponente.mazo, body.mazo, roster, abilities, config, oponente.nombre, body.nombre);
   const viewTokenA = generarViewToken();
   const viewTokenB = generarViewToken();
 

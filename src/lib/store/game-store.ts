@@ -7,6 +7,7 @@ import type { EngineConfig } from "@/lib/game-engine/config";
 import type { GameState, Lado } from "@/lib/card-game/types";
 import { MAX_CARTAS_MAZO } from "@/lib/card-game/types";
 import { crearPartida, invocar as invocarEngine, atacar as atacarEngine, type ResultadoAtaque } from "@/lib/card-game/engine";
+import type { PersonalidadIA } from "@/lib/card-game/ai";
 
 interface GameStoreState {
   mazoA: string[];
@@ -27,13 +28,22 @@ interface GameStoreState {
   /** Cuando está activo, `ladoIA` juega solo (ver useIaAutoplay) — no se muestra "pasa el dispositivo" en su turno. */
   modoIA: boolean;
   ladoIA: Lado | null;
+  personalidadIA: PersonalidadIA;
 
   setNombreA: (n: string) => void;
   setNombreB: (n: string) => void;
   toggleCarta: (lado: Lado, reptilId: string) => void;
   puedeIniciar: () => boolean;
-  iniciar: (nombreA: string, nombreB: string) => void;
-  iniciarVsIA: (mazoJugador: string[], nombreJugador: string, mazoIA: string[]) => void;
+  iniciar: (nombreA: string, nombreB: string, roster: Reptil[], abilities: Habilidad[], config: EngineConfig) => void;
+  iniciarVsIA: (
+    mazoJugador: string[],
+    nombreJugador: string,
+    mazoIA: string[],
+    roster: Reptil[],
+    abilities: Habilidad[],
+    config: EngineConfig,
+    personalidad?: PersonalidadIA,
+  ) => void;
   confirmarTurno: () => void;
   invocar: (reptilId: string, roster: Reptil[]) => void;
   atacar: (habilidadId: string, roster: Reptil[], abilities: Habilidad[], config: EngineConfig) => void;
@@ -56,6 +66,7 @@ export const useGameStore = create<GameStoreState>()((set, get) => ({
   pantallaTransicion: false,
   modoIA: false,
   ladoIA: null,
+  personalidadIA: "equilibrada",
 
   setNombreA: (n) => set({ nombreA: n }),
   setNombreB: (n) => set({ nombreB: n }),
@@ -78,9 +89,9 @@ export const useGameStore = create<GameStoreState>()((set, get) => ({
     return s.mazoA.length > 0 && s.mazoB.length > 0;
   },
 
-  iniciar: (nombreA, nombreB) => {
+  iniciar: (nombreA, nombreB, roster, abilities, config) => {
     const s = get();
-    const state = crearPartida(s.mazoA, s.mazoB, nombreA, nombreB);
+    const state = crearPartida(s.mazoA, s.mazoB, roster, abilities, config, nombreA, nombreB);
     set({
       state,
       nombreA,
@@ -93,8 +104,8 @@ export const useGameStore = create<GameStoreState>()((set, get) => ({
     });
   },
 
-  iniciarVsIA: (mazoJugador, nombreJugador, mazoIA) => {
-    const state = crearPartida(mazoJugador, mazoIA, nombreJugador, "IA");
+  iniciarVsIA: (mazoJugador, nombreJugador, mazoIA, roster, abilities, config, personalidad = "equilibrada") => {
+    const state = crearPartida(mazoJugador, mazoIA, roster, abilities, config, nombreJugador, "IA");
     set({
       state,
       mazoA: mazoJugador,
@@ -106,6 +117,7 @@ export const useGameStore = create<GameStoreState>()((set, get) => ({
       pantallaTransicion: false,
       modoIA: true,
       ladoIA: "B",
+      personalidadIA: personalidad,
     });
   },
 

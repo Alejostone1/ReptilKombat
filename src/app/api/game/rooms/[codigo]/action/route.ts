@@ -71,6 +71,20 @@ export async function POST(request: Request, { params }: Params) {
 
   await supabase.from("game_moves").insert({ room_id: sala.id, lado: yo.lado, accion: body.accion });
 
+  // Analítica real de balance (nunca simulada): un registro por partida online terminada,
+  // usado por /admin/balance para calcular win rate / partidas jugadas por reptil.
+  if (terminado && nuevoEstado.ganador) {
+    const duracionSegundos = Math.max(0, Math.round((Date.now() - new Date(sala.creadoEn).getTime()) / 1000));
+    await supabase.from("match_results").insert({
+      room_id: sala.id,
+      ganador_lado: nuevoEstado.ganador,
+      reptiles_a: sala.mazoA ?? [],
+      reptiles_b: sala.mazoB ?? [],
+      turnos: nuevoEstado.numeroTurno,
+      duracion_segundos: duracionSegundos,
+    });
+  }
+
   await emitirEstado(nuevoEstado, jugadores, {
     ultimoResultado,
     estadoSala: terminado ? "FINISHED" : "IN_PROGRESS",

@@ -10,6 +10,9 @@ import { cn } from "@/lib/utils";
 interface GameCardProps {
   reptil: Reptil;
   hpActual?: number;
+  /** Si se pasan junto con `energiaMax`, muestra la barra de energía debajo de la de HP (solo en size !== "sm"). */
+  energiaActual?: number;
+  energiaMax?: number;
   size?: "sm" | "md" | "lg";
   seleccionable?: boolean;
   seleccionada?: boolean;
@@ -18,6 +21,8 @@ interface GameCardProps {
   animarEntrada?: boolean;
   sacudir?: boolean;
 }
+
+const UMBRAL_HP_CRITICO = 15;
 
 const SIZE_CLASSES = {
   sm: "w-24 sm:w-28",
@@ -37,6 +42,8 @@ function filtroPorHp(pctHp: number): string {
 export function GameCard({
   reptil,
   hpActual,
+  energiaActual,
+  energiaMax,
   size = "md",
   seleccionable,
   seleccionada,
@@ -49,6 +56,8 @@ export function GameCard({
   const hpMax = reptil.hp;
   const hp = hpActual ?? hpMax;
   const pctHp = Math.max(0, Math.min(100, (hp / hpMax) * 100));
+  const critico = pctHp > 0 && pctHp <= UMBRAL_HP_CRITICO;
+  const pctEnergia = energiaMax && energiaMax > 0 ? Math.max(0, Math.min(100, ((energiaActual ?? energiaMax) / energiaMax) * 100)) : null;
 
   return (
     <motion.button
@@ -100,6 +109,26 @@ export function GameCard({
           <p className="text-right font-mono text-[10px] text-foreground-muted">
             {STAT_LABELS.hp.emoji} {Math.round(hp)}/{hpMax}
           </p>
+          {critico && (
+            <motion.p
+              animate={{ opacity: [1, 0.4, 1] }}
+              transition={{ duration: 0.8, repeat: Infinity }}
+              className="text-center text-[9px] font-black uppercase tracking-wide text-state-danger"
+            >
+              ⚠️ Critical HP
+            </motion.p>
+          )}
+
+          {size !== "sm" && pctEnergia !== null && (
+            <>
+              <div className="h-1 w-full overflow-hidden rounded-full bg-panel-secondary">
+                <motion.div className="h-full rounded-full bg-affinity-agil" animate={{ width: `${pctEnergia}%` }} transition={{ duration: 0.4 }} />
+              </div>
+              <p className="text-right font-mono text-[9px] text-foreground-muted">
+                ⚡ {Math.round(energiaActual ?? energiaMax ?? 0)}/{energiaMax}
+              </p>
+            </>
+          )}
 
           {size !== "sm" && (
             <div className="grid grid-cols-3 gap-0.5 pt-1 text-center text-[9px] text-foreground-muted">

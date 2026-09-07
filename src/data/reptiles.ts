@@ -21,6 +21,7 @@ export const REPTILES_BASE: ReptilBase[] = [
     distribucion: 'Australia central',
     descripcion: 'Agámido de tamaño medio conocido por la \'barba\' de espinas que despliega como advertencia territorial y de cortejo.',
     hp: 72, atk: 74, def: 64, spd: 50, inst: 48, adp: 52,
+    energiaMax: 101, criticoProbabilidad: 18,
     pasiva: 'Adaptación de térmico: rendimiento especializado como bruiser térmico.',
   },
   {
@@ -36,6 +37,7 @@ export const REPTILES_BASE: ReptilBase[] = [
     distribucion: 'Norte de África y Oriente Medio',
     descripcion: 'Herbívoro robusto de cola espinosa que usa como arma defensiva; gran tolerancia al calor extremo.',
     hp: 82, atk: 56, def: 78, spd: 34, inst: 52, adp: 58,
+    energiaMax: 104, criticoProbabilidad: 16,
     pasiva: 'Adaptación de térmico: rendimiento especializado como tanque desértico.',
   },
   {
@@ -51,6 +53,7 @@ export const REPTILES_BASE: ReptilBase[] = [
     distribucion: 'Norte de África hasta el sur de Asia',
     descripcion: 'Varano veloz y activo, cazador oportunista de invertebrados y pequeños vertebrados.',
     hp: 58, atk: 82, def: 48, spd: 72, inst: 46, adp: 54,
+    energiaMax: 102, criticoProbabilidad: 20,
     pasiva: 'Adaptación de térmico: rendimiento especializado como cazador móvil.',
   },
   {
@@ -66,6 +69,7 @@ export const REPTILES_BASE: ReptilBase[] = [
     distribucion: 'Suroeste de Estados Unidos y norte de México',
     descripcion: 'Cuerpo aplanado con espinas craneales; camuflaje críptico y defensa mediante expulsión de sangre ocular.',
     hp: 76, atk: 52, def: 80, spd: 38, inst: 60, adp: 54,
+    energiaMax: 102, criticoProbabilidad: 18,
     pasiva: 'Adaptación de térmico: rendimiento especializado como defensor térmico.',
   },
   {
@@ -81,6 +85,7 @@ export const REPTILES_BASE: ReptilBase[] = [
     distribucion: 'Suroeste de EE. UU. y noroeste de México',
     descripcion: 'Iguánido robusto que se infla de aire para atascarse en grietas rocosas y evitar depredadores.',
     hp: 80, atk: 62, def: 72, spd: 42, inst: 48, adp: 56,
+    energiaMax: 103, criticoProbabilidad: 17,
     pasiva: 'Adaptación de térmico: rendimiento especializado como resistente.',
   },
   {
@@ -96,6 +101,7 @@ export const REPTILES_BASE: ReptilBase[] = [
     distribucion: 'Sudamérica',
     descripcion: 'Uno de los mayores depredadores del Amazonas; mandíbula robusta y coloración oscura que absorbe calor.',
     hp: 88, atk: 78, def: 72, spd: 24, inst: 44, adp: 54,
+    energiaMax: 102, criticoProbabilidad: 14,
     pasiva: 'Adaptación de acuático: rendimiento especializado como tanque pesado.',
   },
   {
@@ -111,6 +117,7 @@ export const REPTILES_BASE: ReptilBase[] = [
     distribucion: 'Islas Galápagos',
     descripcion: 'Único lagarto marino del mundo; se sumerge en aguas frías para alimentarse de algas.',
     hp: 74, atk: 62, def: 66, spd: 50, inst: 54, adp: 54,
+    energiaMax: 102, criticoProbabilidad: 18,
     pasiva: 'Adaptación de acuático: rendimiento especializado como bruiser resistente.',
   },
   {
@@ -126,6 +133,7 @@ export const REPTILES_BASE: ReptilBase[] = [
     distribucion: 'Océano Índico y Pacífico occidental',
     descripcion: 'Serpiente marina de veneno potente y cola aplanada en forma de remo, adaptada a la natación.',
     hp: 52, atk: 78, def: 42, spd: 78, inst: 56, adp: 54,
+    energiaMax: 102, criticoProbabilidad: 22,
     pasiva: 'Adaptación de acuático: rendimiento especializado como asesino acuático.',
   },
   {
@@ -141,6 +149,7 @@ export const REPTILES_BASE: ReptilBase[] = [
     distribucion: 'Norteamérica',
     descripcion: 'Tortuga de mordida poderosa y temperamento defensivo fuera del agua.',
     hp: 78, atk: 68, def: 78, spd: 30, inst: 50, adp: 56,
+    energiaMax: 103, criticoProbabilidad: 16,
     pasiva: 'Adaptación de acuático: rendimiento especializado como contraatacante.',
   },
   {
@@ -156,6 +165,7 @@ export const REPTILES_BASE: ReptilBase[] = [
     distribucion: 'México y Centroamérica',
     descripcion: 'Emboscador paciente que aprovecha la vegetación acuática para camuflarse antes de atacar.',
     hp: 68, atk: 80, def: 62, spd: 42, inst: 54, adp: 54,
+    energiaMax: 102, criticoProbabilidad: 18,
     pasiva: 'Adaptación de acuático: rendimiento especializado como emboscador.',
   },
   {
@@ -171,6 +181,7 @@ export const REPTILES_BASE: ReptilBase[] = [
     distribucion: 'Suroeste de EE. UU. y noroeste de México',
     descripcion: 'Uno de los pocos lagartos venenosos del mundo; movimientos lentos pero mordida prolongada y tóxica.',
     hp: 80, atk: 58, def: 76, spd: 36, inst: 52, adp: 58,
+    energiaMax: 104, criticoProbabilidad: 17,
     pasiva: 'Adaptación de venenoso: rendimiento especializado como desgaste.',
   },
   {
@@ -186,6 +197,7 @@ export const REPTILES_BASE: ReptilBase[] = [
     distribucion: 'Sureste de Estados Unidos',
     descripcion: 'Coloración de advertencia en anillos y veneno neurotóxico de alta potencia pese a su tamaño reducido.',
     hp: 44, atk: 82, def: 40, spd: 76, inst: 64, adp: 54,
+    energiaMax: 102, criticoProbabilidad: 23,
     pasiva: 'Adaptación de venenoso: rendimiento especializado como cañón tóxico.',
   },
   {
@@ -201,6 +213,7 @@ export const REPTILES_BASE: ReptilBase[] = [
     distribucion: 'África subsahariana',
     descripcion: 'Vívora con algunos de los colmillos más largos conocidos; patrón de camuflaje excepcional entre la hojarasca.',
     hp: 74, atk: 84, def: 58, spd: 30, inst: 66, adp: 48,
+    energiaMax: 99, criticoProbabilidad: 18,
     pasiva: 'Adaptación de venenoso: rendimiento especializado como emboscador pesado.',
   },
   {
@@ -216,6 +229,7 @@ export const REPTILES_BASE: ReptilBase[] = [
     distribucion: 'Sudamérica',
     descripcion: 'Crótalo con órganos termorreceptores y cascabel de advertencia; veneno con componentes neurotóxicos.',
     hp: 58, atk: 78, def: 48, spd: 64, inst: 68, adp: 44,
+    energiaMax: 97, criticoProbabilidad: 22,
     pasiva: 'Adaptación de venenoso: rendimiento especializado como duelista.',
   },
   {
@@ -231,6 +245,7 @@ export const REPTILES_BASE: ReptilBase[] = [
     distribucion: 'México y Centroamérica',
     descripcion: 'Pariente del Monstruo de Gila, de mayor tamaño y hábitos más terrestres.',
     hp: 70, atk: 62, def: 66, spd: 48, inst: 56, adp: 58,
+    energiaMax: 104, criticoProbabilidad: 18,
     pasiva: 'Adaptación de venenoso: rendimiento especializado como controlador.',
   },
   {
@@ -246,6 +261,7 @@ export const REPTILES_BASE: ReptilBase[] = [
     distribucion: 'Sudáfrica',
     descripcion: 'Se enrosca mordiendo su propia cola para exponer solo sus placas óseas ante un depredador.',
     hp: 66, atk: 50, def: 94, spd: 36, inst: 52, adp: 62,
+    energiaMax: 106, criticoProbabilidad: 17,
     pasiva: 'Adaptación de acorazado: rendimiento especializado como defensa extrema.',
   },
   {
@@ -261,6 +277,7 @@ export const REPTILES_BASE: ReptilBase[] = [
     distribucion: 'Islas Galápagos',
     descripcion: 'Una de las tortugas terrestres más longevas y de mayor tamaño del planeta.',
     hp: 96, atk: 42, def: 92, spd: 18, inst: 48, adp: 64,
+    energiaMax: 107, criticoProbabilidad: 14,
     pasiva: 'Adaptación de acorazado: rendimiento especializado como titán.',
   },
   {
@@ -276,6 +293,7 @@ export const REPTILES_BASE: ReptilBase[] = [
     distribucion: 'África subsahariana',
     descripcion: 'Gran depredador de emboscada con una de las mordidas más fuertes entre los reptiles.',
     hp: 82, atk: 78, def: 76, spd: 28, inst: 46, adp: 50,
+    energiaMax: 100, criticoProbabilidad: 15,
     pasiva: 'Adaptación de acorazado: rendimiento especializado como luchador blindado.',
   },
   {
@@ -291,6 +309,7 @@ export const REPTILES_BASE: ReptilBase[] = [
     distribucion: 'Norteamérica',
     descripcion: 'Caparazón flexible y aplanado que le confiere gran agilidad acuática pese a su blindaje reducido.',
     hp: 70, atk: 58, def: 78, spd: 46, inst: 52, adp: 56,
+    energiaMax: 103, criticoProbabilidad: 18,
     pasiva: 'Adaptación de acorazado: rendimiento especializado como defensor móvil.',
   },
   {
@@ -306,6 +325,7 @@ export const REPTILES_BASE: ReptilBase[] = [
     distribucion: 'Sur de México',
     descripcion: 'Especie venenosa de piel cubierta de escamas en forma de cuentas óseas (osteodermos).',
     hp: 76, atk: 64, def: 76, spd: 38, inst: 50, adp: 56,
+    energiaMax: 103, criticoProbabilidad: 17,
     pasiva: 'Adaptación de acorazado: rendimiento especializado como bruiser blindado.',
   },
   {
@@ -321,6 +341,7 @@ export const REPTILES_BASE: ReptilBase[] = [
     distribucion: 'Madagascar',
     descripcion: 'Coloración vívida y cambiante, ojos de movimiento independiente y lengua proyectil de gran alcance.',
     hp: 56, atk: 64, def: 46, spd: 82, inst: 62, adp: 50,
+    energiaMax: 100, criticoProbabilidad: 23,
     pasiva: 'Adaptación de ágil: rendimiento especializado como táctico evasivo.',
   },
   {
@@ -336,6 +357,7 @@ export const REPTILES_BASE: ReptilBase[] = [
     distribucion: 'Nueva Caledonia',
     descripcion: 'Geco arborícola con pestañas cutáneas distintivas y gran capacidad de salto entre ramas.',
     hp: 50, atk: 70, def: 42, spd: 90, inst: 56, adp: 52,
+    energiaMax: 101, criticoProbabilidad: 24,
     pasiva: 'Adaptación de ágil: rendimiento especializado como velocista.',
   },
   {
@@ -351,6 +373,7 @@ export const REPTILES_BASE: ReptilBase[] = [
     distribucion: 'Centroamérica',
     descripcion: 'Conocido por su capacidad de correr sobre la superficie del agua para escapar de depredadores.',
     hp: 54, atk: 76, def: 44, spd: 80, inst: 52, adp: 54,
+    energiaMax: 102, criticoProbabilidad: 22,
     pasiva: 'Adaptación de ágil: rendimiento especializado como atacante rápido.',
   },
   {
@@ -366,6 +389,7 @@ export const REPTILES_BASE: ReptilBase[] = [
     distribucion: 'Suroeste de Estados Unidos',
     descripcion: 'Velocista bípedo capaz de correr apoyado solo en las patas traseras en distancias cortas.',
     hp: 64, atk: 70, def: 50, spd: 70, inst: 58, adp: 48,
+    energiaMax: 99, criticoProbabilidad: 21,
     pasiva: 'Adaptación de ágil: rendimiento especializado como duelista.',
   },
   {
@@ -381,6 +405,7 @@ export const REPTILES_BASE: ReptilBase[] = [
     distribucion: 'Sur de Asia',
     descripcion: 'Geco terrestre con párpados móviles, patrón moteado y cola que almacena grasa como reserva energética.',
     hp: 62, atk: 68, def: 54, spd: 72, inst: 56, adp: 48,
+    energiaMax: 99, criticoProbabilidad: 21,
     pasiva: 'Adaptación de ágil: rendimiento especializado como skirmisher.',
   },
   {
@@ -396,6 +421,7 @@ export const REPTILES_BASE: ReptilBase[] = [
     distribucion: 'África oriental',
     descripcion: 'Los machos poseen tres cuernos frontales usados en disputas territoriales.',
     hp: 60, atk: 58, def: 54, spd: 58, inst: 76, adp: 54,
+    energiaMax: 102, criticoProbabilidad: 22,
     pasiva: 'Adaptación de camuflaje: rendimiento especializado como evasivo.',
   },
   {
@@ -411,6 +437,7 @@ export const REPTILES_BASE: ReptilBase[] = [
     distribucion: 'Madagascar',
     descripcion: 'Mimetismo extremo con hojas secas; prácticamente indetectable en reposo.',
     hp: 52, atk: 66, def: 44, spd: 64, inst: 84, adp: 50,
+    energiaMax: 100, criticoProbabilidad: 24,
     pasiva: 'Adaptación de camuflaje: rendimiento especializado como fantasma.',
   },
   {
@@ -426,6 +453,7 @@ export const REPTILES_BASE: ReptilBase[] = [
     distribucion: 'Puerto Rico y el Caribe',
     descripcion: 'Anolis territorial con papada (dewlap) desplegable usada en comunicación y disputas.',
     hp: 56, atk: 68, def: 46, spd: 72, inst: 72, adp: 46,
+    energiaMax: 98, criticoProbabilidad: 23,
     pasiva: 'Adaptación de camuflaje: rendimiento especializado como hostigador.',
   },
   {
@@ -441,6 +469,7 @@ export const REPTILES_BASE: ReptilBase[] = [
     distribucion: 'Sudamérica',
     descripcion: 'Coloración verde intensa y postura de reposo distintiva sobre las ramas (\'saddle position\').',
     hp: 68, atk: 74, def: 56, spd: 48, inst: 70, adp: 44,
+    energiaMax: 97, criticoProbabilidad: 20,
     pasiva: 'Adaptación de camuflaje: rendimiento especializado como emboscador.',
   },
   {
@@ -456,6 +485,7 @@ export const REPTILES_BASE: ReptilBase[] = [
     distribucion: 'Norte de Vietnam',
     descripcion: 'Piel con textura similar al musgo que brinda un camuflaje casi perfecto sobre rocas y líquenes. (Nota de datos: la especie de referencia es un anfibio, incluido aquí como personaje del roster por el archivo fuente del usuario.)',
     hp: 62, atk: 54, def: 58, spd: 56, inst: 78, adp: 52,
+    energiaMax: 101, criticoProbabilidad: 22,
     pasiva: 'Adaptación de camuflaje: rendimiento especializado como control visual.',
   },
   {
@@ -471,6 +501,7 @@ export const REPTILES_BASE: ReptilBase[] = [
     distribucion: 'México a Sudamérica',
     descripcion: 'Víbora de foseta termorreceptora, una de las especies médicamente más relevantes de América Latina.',
     hp: 64, atk: 78, def: 52, spd: 56, inst: 86, adp: 24,
+    energiaMax: 87, criticoProbabilidad: 23,
     pasiva: 'Adaptación de sensorial: rendimiento especializado como rastreador.',
   },
   {
@@ -486,6 +517,7 @@ export const REPTILES_BASE: ReptilBase[] = [
     distribucion: 'Sudeste asiático',
     descripcion: 'Una de las serpientes más largas del mundo; constrictor de gran fuerza y sentidos térmicos agudizados.',
     hp: 78, atk: 76, def: 62, spd: 44, inst: 82, adp: 18,
+    energiaMax: 84, criticoProbabilidad: 21,
     pasiva: 'Adaptación de sensorial: rendimiento especializado como cazador.',
   },
   {
@@ -501,6 +533,7 @@ export const REPTILES_BASE: ReptilBase[] = [
     distribucion: 'Norteamérica',
     descripcion: 'Resistente al veneno de crotálidos; se alimenta incluso de otras serpientes venenosas.',
     hp: 66, atk: 68, def: 60, spd: 60, inst: 82, adp: 24,
+    energiaMax: 87, criticoProbabilidad: 23,
     pasiva: 'Adaptación de sensorial: rendimiento especializado como duelista analítico.',
   },
   {
@@ -516,6 +549,7 @@ export const REPTILES_BASE: ReptilBase[] = [
     distribucion: 'Islas de Indonesia',
     descripcion: 'El lagarto vivo más grande del mundo; cazador de emboscada con saliva rica en toxinas.',
     hp: 78, atk: 82, def: 58, spd: 42, inst: 78, adp: 22,
+    energiaMax: 86, criticoProbabilidad: 20,
     pasiva: 'Adaptación de sensorial: rendimiento especializado como depredador.',
   },
   {
@@ -531,6 +565,7 @@ export const REPTILES_BASE: ReptilBase[] = [
     distribucion: 'Centro y Sudamérica',
     descripcion: 'Constrictor generalista de gran adaptabilidad ambiental y sentidos térmicos en fosetas labiales.',
     hp: 76, atk: 72, def: 66, spd: 38, inst: 84, adp: 24,
+    energiaMax: 87, criticoProbabilidad: 21,
     pasiva: 'Adaptación de sensorial: rendimiento especializado como rastreador pesado.',
   },
   {
@@ -546,6 +581,7 @@ export const REPTILES_BASE: ReptilBase[] = [
     distribucion: 'Cuenca del Amazonas y Orinoco',
     descripcion: 'Una de las serpientes más pesadas del mundo; cazadora acuática que constriñe presas de gran tamaño.',
     hp: 90, atk: 72, def: 72, spd: 22, inst: 50, adp: 54,
+    energiaMax: 102, criticoProbabilidad: 15,
     pasiva: 'Adaptación de constrictor: rendimiento especializado como tanque de agarre.',
   },
   {
@@ -561,6 +597,7 @@ export const REPTILES_BASE: ReptilBase[] = [
     distribucion: 'Sudeste asiático',
     descripcion: 'Constrictor de gran tamaño y fuerza, capaz de someter presas voluminosas por compresión progresiva.',
     hp: 84, atk: 74, def: 70, spd: 28, inst: 52, adp: 52,
+    energiaMax: 101, criticoProbabilidad: 16,
     pasiva: 'Adaptación de constrictor: rendimiento especializado como control pesado.',
   },
   {
@@ -576,6 +613,7 @@ export const REPTILES_BASE: ReptilBase[] = [
     distribucion: 'África oriental',
     descripcion: 'Boa fosorial de cuerpo corto y robusto que embosca presas semienterrada bajo la arena.',
     hp: 70, atk: 68, def: 66, spd: 38, inst: 56, adp: 62,
+    energiaMax: 106, criticoProbabilidad: 17,
     pasiva: 'Adaptación de constrictor: rendimiento especializado como atrapador.',
   },
   {
@@ -591,6 +629,7 @@ export const REPTILES_BASE: ReptilBase[] = [
     distribucion: 'África occidental',
     descripcion: 'Conocida por enroscarse en forma de bola compacta como mecanismo de defensa ante amenazas.',
     hp: 74, atk: 64, def: 76, spd: 32, inst: 54, adp: 60,
+    energiaMax: 105, criticoProbabilidad: 16,
     pasiva: 'Adaptación de constrictor: rendimiento especializado como defensor.',
   },
   {
@@ -606,6 +645,7 @@ export const REPTILES_BASE: ReptilBase[] = [
     distribucion: 'Sur de Europa y norte de África',
     descripcion: 'Colúbrido veloz y diurno, con el característico patrón dorsal en forma de herradura.',
     hp: 62, atk: 70, def: 54, spd: 58, inst: 58, adp: 58,
+    energiaMax: 104, criticoProbabilidad: 20,
     pasiva: 'Adaptación de constrictor: rendimiento especializado como control móvil.',
   },
 ];

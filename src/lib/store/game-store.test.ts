@@ -14,12 +14,13 @@ describe("game-store: ultimoDerrotado", () => {
 
   it("captura lado y reptilId del defensor cuando un ataque lo derrota", () => {
     useGameStore.setState({ mazoA: ["geco-de-cola-de-hoja"], mazoB: ["cocodrilo-del-nilo"] });
-    useGameStore.getState().iniciar("A", "B");
+    useGameStore.getState().iniciar("A", "B", ROSTER, ABILITIES, DEFAULT_ENGINE_CONFIG);
     useGameStore.getState().invocar("geco-de-cola-de-hoja", ROSTER);
     useGameStore.getState().invocar("cocodrilo-del-nilo", ROSTER);
 
-    const habilidadPoderosa = ABILITIES.find((a) => a.propietarioId === "cocodrilo-del-nilo")!;
-    const habilidadA = ABILITIES.find((a) => a.propietarioId === "geco-de-cola-de-hoja")!;
+    // Ataque Físico (Normal): sin cooldown ni costo de energía, se puede repetir cada turno sin límite.
+    const habilidadPoderosa = ABILITIES.find((a) => a.propietarioId === "cocodrilo-del-nilo" && a.categoria === "Fisica")!;
+    const habilidadA = ABILITIES.find((a) => a.propietarioId === "geco-de-cola-de-hoja" && a.categoria === "Fisica")!;
 
     let guard = 0;
     while (useGameStore.getState().state?.fase !== "terminado" && guard < 50) {
@@ -42,11 +43,11 @@ describe("game-store: ultimoDerrotado", () => {
 
   it("no marca ultimoDerrotado cuando el golpe no reduce el HP a 0", () => {
     useGameStore.setState({ mazoA: ["dragon-barbudo"], mazoB: ["caiman-negro"] });
-    useGameStore.getState().iniciar("A", "B");
+    useGameStore.getState().iniciar("A", "B", ROSTER, ABILITIES, DEFAULT_ENGINE_CONFIG);
     useGameStore.getState().invocar("dragon-barbudo", ROSTER);
     useGameStore.getState().invocar("caiman-negro", ROSTER);
 
-    const habilidadDragon = ABILITIES.find((a) => a.propietarioId === "dragon-barbudo")!;
+    const habilidadDragon = ABILITIES.find((a) => a.propietarioId === "dragon-barbudo" && a.categoria === "Fisica")!;
     useGameStore.getState().atacar(habilidadDragon.id, ROSTER, ABILITIES, DEFAULT_ENGINE_CONFIG);
 
     expect(useGameStore.getState().state?.jugadorB.activo).not.toBeNull();

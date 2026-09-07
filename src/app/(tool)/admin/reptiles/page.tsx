@@ -39,6 +39,9 @@ function reptilToInput(r: ReptilBase): ReptileInput {
     spd: r.spd,
     inst: r.inst,
     adp: r.adp,
+    energiaMax: r.energiaMax,
+    criticoProbabilidad: r.criticoProbabilidad,
+    imagenUrl: r.imagenUrl ?? "",
   };
 }
 
@@ -97,6 +100,10 @@ function ReptilesAdmin() {
   }
 
   async function toggleActivo(r: ReptilBase) {
+    if (r.activo) {
+      const ok = confirm(`¿Desactivar a ${r.nombre}? Dejará de aparecer en nuevas partidas (las partidas ya en curso no se ven afectadas).`);
+      if (!ok) return;
+    }
     await fetch(`/api/admin/reptiles/${r.id}`, {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },

@@ -3,7 +3,7 @@ import type { Database, ReptileRow, AbilityRow, EngineConfigRow } from "./types"
 import type { ReptilBase } from "@/types/reptile";
 import type { Habilidad } from "@/types/ability";
 import type { Afinidad } from "@/types/affinity";
-import type { CategoriaHabilidad } from "@/types/ability";
+import type { CategoriaHabilidad, TipoEfecto } from "@/types/ability";
 import type { EngineConfig } from "@/lib/game-engine/config";
 import { DEFAULT_ENGINE_CONFIG } from "@/lib/game-engine/config";
 
@@ -31,6 +31,8 @@ function rowToReptilBase(row: ReptileRow): ReptilBase {
     spd: row.spd,
     inst: row.inst,
     adp: row.adp,
+    energiaMax: row.energia_max,
+    criticoProbabilidad: row.critico_probabilidad,
     pasiva: row.pasiva ?? undefined,
     activo: row.activo,
     fechaCreacion: row.fecha_creacion,
@@ -55,6 +57,8 @@ export function reptileInputToRow(input: {
   spd: number;
   inst: number;
   adp: number;
+  energiaMax: number;
+  criticoProbabilidad: number;
 }): Omit<ReptileRow, "activo" | "fecha_creacion" | "id" | "numero" | "imagen_url" | "imagen_fuente" | "imagen_autor"> {
   return {
     nombre: input.nombre,
@@ -73,6 +77,8 @@ export function reptileInputToRow(input: {
     spd: input.spd,
     inst: input.inst,
     adp: input.adp,
+    energia_max: input.energiaMax,
+    critico_probabilidad: input.criticoProbabilidad,
   };
 }
 
@@ -81,6 +87,9 @@ export function reptilePatchToRow(patch: Record<string, unknown>): Record<string
   const map: Record<string, string> = {
     nombreCientifico: "nombre_cientifico",
     rolTactico: "rol_tactico",
+    energiaMax: "energia_max",
+    criticoProbabilidad: "critico_probabilidad",
+    imagenUrl: "imagen_url",
   };
   const row: Record<string, unknown> = {};
   for (const [key, value] of Object.entries(patch)) {
@@ -103,6 +112,11 @@ function rowToHabilidad(row: AbilityRow): Habilidad {
     cooldown: row.cooldown ?? undefined,
     prioridad: row.prioridad ?? undefined,
     descripcion: row.descripcion ?? undefined,
+    costoEnergia: row.costo_energia,
+    cooldownTurnos: row.cooldown_turnos,
+    tipoEfecto: (row.tipo_efecto as TipoEfecto | null) ?? null,
+    efectoMagnitud: row.efecto_magnitud ?? null,
+    efectoTurnos: row.efecto_turnos ?? null,
   };
 }
 
@@ -130,6 +144,11 @@ export function abilityInputToRow(input: {
   cooldown?: number;
   prioridad?: number;
   descripcion?: string;
+  costoEnergia?: number;
+  cooldownTurnos?: number;
+  tipoEfecto?: string | null;
+  efectoMagnitud?: number | null;
+  efectoTurnos?: number | null;
 }): Omit<AbilityRow, "id"> {
   return {
     nombre: input.nombre,
@@ -142,12 +161,24 @@ export function abilityInputToRow(input: {
     cooldown: input.cooldown ?? null,
     prioridad: input.prioridad ?? null,
     descripcion: input.descripcion ?? null,
+    costo_energia: input.costoEnergia ?? 0,
+    cooldown_turnos: input.cooldownTurnos ?? 0,
+    tipo_efecto: (input.tipoEfecto as AbilityRow["tipo_efecto"]) ?? null,
+    efecto_magnitud: input.efectoMagnitud ?? null,
+    efecto_turnos: input.efectoTurnos ?? null,
   };
 }
 
 /** camelCase -> snake_case parcial, para PATCH /api/admin/habilidades/[id]. */
 export function abilityPatchToRow(patch: Record<string, unknown>): Record<string, unknown> {
-  const map: Record<string, string> = { propietarioId: "propietario_id" };
+  const map: Record<string, string> = {
+    propietarioId: "propietario_id",
+    costoEnergia: "costo_energia",
+    cooldownTurnos: "cooldown_turnos",
+    tipoEfecto: "tipo_efecto",
+    efectoMagnitud: "efecto_magnitud",
+    efectoTurnos: "efecto_turnos",
+  };
   const row: Record<string, unknown> = {};
   for (const [key, value] of Object.entries(patch)) {
     if (value === undefined) continue;
@@ -176,5 +207,10 @@ export async function fetchEngineConfig(supabase: Client): Promise<EngineConfig>
     winRateDebil: row.win_rate_debil,
     offsetAtkDef: row.offset_atk_def,
     divisorDano: row.divisor_dano,
+    categoriaNormalMult: row.categoria_normal_mult,
+    categoriaEspecialMult: row.categoria_especial_mult,
+    categoriaControlMult: row.categoria_control_mult,
+    criticoMultiplicador: row.critico_multiplicador,
+    energiaRegenTurno: row.energia_regen_turno,
   };
 }

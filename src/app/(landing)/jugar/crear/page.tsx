@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { useRoster } from "@/lib/hooks/useRoster";
+import { MAX_CARTAS_MAZO } from "@/lib/card-game/types";
 import { DeckBuilder } from "@/components/cards/DeckBuilder";
 import { Input } from "@/components/ui/Input";
 import { Button } from "@/components/ui/Button";
@@ -18,7 +19,7 @@ export default function CrearPartidaPage() {
   const [error, setError] = useState<string | null>(null);
 
   function toggle(id: string) {
-    setMazo((prev) => (prev.includes(id) ? prev.filter((x) => x !== id) : prev.length >= 5 ? prev : [...prev, id]));
+    setMazo((prev) => (prev.includes(id) ? prev.filter((x) => x !== id) : prev.length >= MAX_CARTAS_MAZO ? prev : [...prev, id]));
   }
 
   async function crear() {

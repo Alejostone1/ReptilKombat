@@ -2,15 +2,20 @@ import { describe, it, expect } from "vitest";
 import type { GameState } from "@/lib/card-game/types";
 import { derivarUltimoDerrotado } from "./useGameRoom";
 
+function cartaBase(reptilId: string, hpActual: number) {
+  return { reptilId, hpActual, energiaActual: 100, cooldowns: {}, estados: [], aturdidoTurnos: 0 };
+}
+
 function estadoBase(overrides: Partial<GameState> = {}): GameState {
   return {
-    jugadorA: { nombre: "A", mazo: [], activo: { reptilId: "dragon-barbudo", hpActual: 40 }, cementerio: [] },
-    jugadorB: { nombre: "B", mazo: [], activo: { reptilId: "caiman-negro", hpActual: 5 }, cementerio: [] },
+    jugadorA: { nombre: "A", mazo: [], activo: cartaBase("dragon-barbudo", 40), cementerio: [] },
+    jugadorB: { nombre: "B", mazo: [], activo: cartaBase("caiman-negro", 5), cementerio: [] },
     turno: "A",
     numeroTurno: 3,
     fase: "combatiendo",
     ganador: null,
     log: [],
+    configuracion: { reptiles: {}, habilidades: {}, energiaRegenTurno: 20 },
     ...overrides,
   };
 }
