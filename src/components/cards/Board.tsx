@@ -24,21 +24,23 @@ function LadoInfo({
   activo: boolean;
 }) {
   return (
-    <div className={cn("flex items-center gap-2 text-xs", activo && "font-semibold text-reptile-green")}>
-      <span className="text-foreground">{nombre}</span>
-      <span className="text-foreground-muted">🂠 {mazoRestante}</span>
-      <span className="text-foreground-muted">💀 {cementerio}</span>
+    <div className={cn("flex items-center gap-1.5 text-[11px] sm:text-xs", activo && "font-semibold text-reptile-green")}>
+      <span className="truncate text-foreground">{nombre}</span>
+      <span className="shrink-0 text-foreground-muted">🂠 {mazoRestante}</span>
+      <span className="shrink-0 text-foreground-muted">💀 {cementerio}</span>
     </div>
   );
 }
+
+const EMPTY_SLOT_CLASSES = "flex aspect-[3/4] w-36 items-center justify-center rounded-xl border-2 border-dashed border-border-subtle p-3 text-center text-xs text-foreground-muted sm:w-48 md:w-56";
 
 export function Board({ gameState, roster, sacudirLado, ultimaInvocacion }: BoardProps) {
   const reptilA = gameState.jugadorA.activo ? roster.find((r) => r.id === gameState.jugadorA.activo!.reptilId) : null;
   const reptilB = gameState.jugadorB.activo ? roster.find((r) => r.id === gameState.jugadorB.activo!.reptilId) : null;
 
   return (
-    <div className="rounded-2xl border border-border-subtle bg-panel/60 p-6">
-      <div className="mb-4 flex items-center justify-between">
+    <div className="rounded-2xl border border-border-subtle bg-panel/60 p-3 sm:p-6">
+      <div className="mb-3 flex items-center justify-between gap-2 sm:mb-4">
         <LadoInfo
           nombre={gameState.jugadorA.nombre}
           mazoRestante={gameState.jugadorA.mazo.length}
@@ -53,7 +55,7 @@ export function Board({ gameState, roster, sacudirLado, ultimaInvocacion }: Boar
         />
       </div>
 
-      <div className="flex items-center justify-center gap-6 py-6 sm:gap-16">
+      <div className="flex flex-col items-center justify-center gap-3 py-3 sm:flex-row sm:gap-6 sm:py-6 md:gap-16">
         <div className="flex flex-col items-center gap-2">
           {reptilA ? (
             <GameCard
@@ -64,13 +66,11 @@ export function Board({ gameState, roster, sacudirLado, ultimaInvocacion }: Boar
               animarEntrada={ultimaInvocacion === "A"}
             />
           ) : (
-            <div className="flex h-72 w-56 items-center justify-center rounded-xl border-2 border-dashed border-border-subtle text-xs text-foreground-muted">
-              Sin reptil activo
-            </div>
+            <div className={EMPTY_SLOT_CLASSES}>Sin reptil activo</div>
           )}
         </div>
 
-        <span className="text-2xl font-black text-foreground-muted">VS</span>
+        <span className="text-xl font-black text-foreground-muted sm:text-2xl">VS</span>
 
         <div className="flex flex-col items-center gap-2">
           {reptilB ? (
@@ -82,9 +82,7 @@ export function Board({ gameState, roster, sacudirLado, ultimaInvocacion }: Boar
               animarEntrada={ultimaInvocacion === "B"}
             />
           ) : (
-            <div className="flex h-72 w-56 items-center justify-center rounded-xl border-2 border-dashed border-border-subtle text-xs text-foreground-muted">
-              Sin reptil activo
-            </div>
+            <div className={EMPTY_SLOT_CLASSES}>Sin reptil activo</div>
           )}
         </div>
       </div>

@@ -7,6 +7,9 @@ import { useRoster } from "@/lib/hooks/useRoster";
 import { useEngineData } from "@/lib/hooks/useEngineData";
 import { useGameStore } from "@/lib/store/game-store";
 import { puedeInvocar, puedeAtacar, habilidadesDisponibles } from "@/lib/card-game/engine";
+import { calculateDamage } from "@/lib/game-engine/damage";
+import { getAffinityTier } from "@/lib/game-engine/affinities";
+import type { MatchupTier } from "@/types/affinity";
 import type { Lado } from "@/lib/card-game/types";
 import { Board } from "@/components/cards/Board";
 import { TurnBanner } from "@/components/cards/TurnBanner";
@@ -15,6 +18,13 @@ import { GameCard } from "@/components/cards/GameCard";
 import { Button } from "@/components/ui/Button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/Card";
 import { Badge } from "@/components/ui/Badge";
+import { cn } from "@/lib/utils";
+
+const TIER_INFO: Record<MatchupTier, { label: string; tone: "ok" | "danger" | "neutral" }> = {
+  ventaja: { label: "🟢 Ventaja", tone: "ok" },
+  desventaja: { label: "🔴 Desventaja", tone: "danger" },
+  neutral: { label: "⚪ Neutral", tone: "neutral" },
+};
 
 export default function MesaPage() {
   const router = useRouter();
@@ -25,6 +35,27 @@ export default function MesaPage() {
   const [ultimaInvocacion, setUltimaInvocacion] = useState<Lado | null>(null);
 
   const habilidadesTurno = useMemo(() => (state ? habilidadesDisponibles(state, abilities) : []), [state, abilities]);
+
+  // Vista previa de daño/efectividad por habilidad, para saber cuál conviene usar antes de atacar.
+  const previews = useMemo(() => {
+    if (!state) return [];
+    const ladoAtacante = state.turno;
+    const ladoDefensor: Lado = ladoAtacante === "A" ? "B" : "A";
+    const jugadorAtacante = ladoAtacante === "A" ? state.jugadorA : state.jugadorB;
+    const jugadorDefensor = ladoDefensor === "A" ? state.jugadorA : state.jugadorB;
+    const atacante = jugadorAtacante.activo ? roster.find((r) => r.id === jugadorAtacante.activo!.reptilId) : null;
+    const defensorBase = jugadorDefensor.activo ? roster.find((r) => r.id === jugadorDefensor.activo!.reptilId) : null;
+    if (!atacante || !defensorBase || !jugadorDefensor.activo) return [];
+
+    const defensorConHp = { ...defensorBase, hp: jugadorDefensor.activo.hpActual };
+    const tier = getAffinityTier(atacante.afinidad, defensorBase.afinidad);
+    const resultados = habilidadesTurno.map((h) => ({
+      habilidad: h,
+      tier,
+      resultado: calculateDamage(atacante, defensorConHp, h, config),
+    }));
+    return resultados.sort((a, b) => b.resultado.danoEsperado - a.resultado.danoEsperado);
+  }, [state, roster, habilidadesTurno, config]);
 
   if (!state) {
     return (
@@ -86,19 +117,26 @@ export default function MesaPage() {
             )}
             {atacarDisponible && (
               <div className="grid gap-2 sm:grid-cols-2">
-                {habilidadesTurno.map((h) => (
+                {previews.map(({ habilidad: h, tier, resultado }, i) => (
                   <button
                     key={h.id}
                     onClick={() => onAtacar(h.id)}
-                    className="flex items-center justify-between rounded-lg border border-border-subtle bg-panel-secondary px-4 py-3 text-left transition-colors hover:border-reptile-green/60"
+                    className={cn(
+                      "flex flex-col gap-2 rounded-lg border bg-panel-secondary px-3 py-3 text-left transition-colors hover:border-reptile-green/60 sm:flex-row sm:items-center sm:justify-between",
+                      i === 0 ? "border-reptile-green/50" : "border-border-subtle",
+                    )}
                   >
-                    <span>
-                      <span className="block font-semibold text-foreground">{h.nombre}</span>
+                    <span className="min-w-0">
+                      <span className="flex items-center gap-1.5">
+                        <span className="truncate font-semibold text-foreground">{h.nombre}</span>
+                        {i === 0 && <Badge tone="ok">★ Mejor opción</Badge>}
+                      </span>
                       <span className="block text-xs text-foreground-muted">{h.efecto}</span>
                     </span>
-                    <span className="flex flex-col items-end gap-1 text-xs">
-                      <Badge tone="accent">Pot. {h.potencia}</Badge>
-                      <Badge>Prec. {h.precision}%</Badge>
+                    <span className="flex shrink-0 flex-wrap items-center gap-1.5 text-xs sm:flex-col sm:items-end">
+                      <Badge tone={TIER_INFO[tier].tone}>{TIER_INFO[tier].label}</Badge>
+                      <Badge tone="accent">≈{Math.round(resultado.danoEsperado)} daño</Badge>
+                      <Badge>{resultado.porcentajeHP.toFixed(0)}% HP</Badge>
                     </span>
                   </button>
                 ))}

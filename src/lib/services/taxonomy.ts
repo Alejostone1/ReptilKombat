@@ -1,4 +1,4 @@
-const GBIF_API_URL = process.env.NEXT_PUBLIC_GBIF_API_URL ?? "https://api.gbif.org/v1";
+const GBIF_API_URL = process.env.NEXT_PUBLIC_GBIF_API_URL || "https://api.gbif.org/v1";
 
 export interface TaxonomiaGBIF {
   nombreCientificoAceptado: string;

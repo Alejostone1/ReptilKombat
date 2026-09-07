@@ -20,9 +20,9 @@ interface GameCardProps {
 }
 
 const SIZE_CLASSES = {
-  sm: "w-28",
-  md: "w-40",
-  lg: "w-56",
+  sm: "w-24 sm:w-28",
+  md: "w-32 sm:w-40",
+  lg: "w-36 sm:w-48 md:w-56",
 };
 
 export function GameCard({

@@ -14,11 +14,14 @@ const FALLBACK_IMAGE: ReptileImageResult = {
 const CACHE_KEY = "reptiles-rpg-image-cache-v1";
 const memoryCache = new Map<string, ReptileImageResult>();
 
+// "||" (no "??"): una variable de entorno definida pero vacía ("") también
+// debe caer al valor por defecto — si no, la URL de la API queda vacía y el
+// fetch se resuelve como ruta relativa al propio sitio (404 silencioso).
 const WIKIPEDIA_API_URL =
-  process.env.NEXT_PUBLIC_WIKIPEDIA_API_URL ?? "https://en.wikipedia.org/api/rest_v1/page/summary";
-const WIKIMEDIA_API_URL = process.env.NEXT_PUBLIC_WIKIMEDIA_API_URL ?? "https://commons.wikimedia.org/w/api.php";
-const INATURALIST_API_URL = process.env.NEXT_PUBLIC_INATURALIST_API_URL ?? "https://api.inaturalist.org/v1";
-const GBIF_API_URL = process.env.NEXT_PUBLIC_GBIF_API_URL ?? "https://api.gbif.org/v1";
+  process.env.NEXT_PUBLIC_WIKIPEDIA_API_URL || "https://en.wikipedia.org/api/rest_v1/page/summary";
+const WIKIMEDIA_API_URL = process.env.NEXT_PUBLIC_WIKIMEDIA_API_URL || "https://commons.wikimedia.org/w/api.php";
+const INATURALIST_API_URL = process.env.NEXT_PUBLIC_INATURALIST_API_URL || "https://api.inaturalist.org/v1";
+const GBIF_API_URL = process.env.NEXT_PUBLIC_GBIF_API_URL || "https://api.gbif.org/v1";
 
 const GALLERY_CACHE_KEY = "reptiles-rpg-gallery-cache-v1";
 const galleryMemoryCache = new Map<string, ReptileImageResult[]>();
