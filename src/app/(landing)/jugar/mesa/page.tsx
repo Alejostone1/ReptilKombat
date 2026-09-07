@@ -1,12 +1,13 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { motion, AnimatePresence } from "framer-motion";
 import { useRoster } from "@/lib/hooks/useRoster";
 import { useEngineData } from "@/lib/hooks/useEngineData";
 import { useGameStore } from "@/lib/store/game-store";
 import { puedeInvocar, puedeAtacar, habilidadesDisponibles } from "@/lib/card-game/engine";
+import { decidirAccionIA } from "@/lib/card-game/ai";
 import { calculateDamage } from "@/lib/game-engine/damage";
 import { getAffinityTier } from "@/lib/game-engine/affinities";
 import type { MatchupTier } from "@/types/affinity";
@@ -30,9 +31,37 @@ export default function MesaPage() {
   const router = useRouter();
   const { roster, abilities } = useRoster();
   const { config } = useEngineData();
-  const { state, ultimoResultado, pantallaTransicion, invocar, atacar, confirmarTurno, reiniciar } = useGameStore();
+  const { state, ultimoResultado, ultimoDerrotado, pantallaTransicion, modoIA, ladoIA, invocar, atacar, confirmarTurno, reiniciar } =
+    useGameStore();
   const [sacudirLado, setSacudirLado] = useState<Lado | null>(null);
   const [ultimaInvocacion, setUltimaInvocacion] = useState<Lado | null>(null);
+  const iaJugando = useRef(false);
+
+  // Turno de la IA: se salta la pantalla de "pasa el dispositivo" y juega sola tras una breve pausa.
+  useEffect(() => {
+    if (!modoIA || !ladoIA || !state || state.turno !== ladoIA || state.fase === "terminado") return;
+    if (pantallaTransicion) {
+      confirmarTurno();
+      return;
+    }
+    if (iaJugando.current) return;
+    iaJugando.current = true;
+    const t = setTimeout(() => {
+      const accion = decidirAccionIA(state, roster, abilities, config, ladoIA);
+      if (accion?.tipo === "invocar") {
+        invocar(accion.reptilId, roster);
+        setUltimaInvocacion(ladoIA);
+        setTimeout(() => setUltimaInvocacion(null), 700);
+      } else if (accion?.tipo === "atacar") {
+        const ladoDefensor: Lado = ladoIA === "A" ? "B" : "A";
+        atacar(accion.habilidadId, roster, abilities, config);
+        setSacudirLado(ladoDefensor);
+        setTimeout(() => setSacudirLado(null), 500);
+      }
+      iaJugando.current = false;
+    }, 900);
+    return () => clearTimeout(t);
+  }, [modoIA, ladoIA, state, pantallaTransicion, roster, abilities, config, invocar, atacar, confirmarTurno]);
 
   const habilidadesTurno = useMemo(() => (state ? habilidadesDisponibles(state, abilities) : []), [state, abilities]);
 
@@ -67,8 +96,9 @@ export default function MesaPage() {
   }
 
   const nombreTurno = state.turno === "A" ? state.jugadorA.nombre : state.jugadorB.nombre;
-  const invocarDisponible = puedeInvocar(state);
-  const atacarDisponible = puedeAtacar(state);
+  const esTurnoDeLaIA = modoIA && state.turno === ladoIA;
+  const invocarDisponible = !esTurnoDeLaIA && puedeInvocar(state);
+  const atacarDisponible = !esTurnoDeLaIA && puedeAtacar(state);
   const manoTurno = state.turno === "A" ? state.jugadorA.mazo : state.jugadorB.mazo;
 
   function onInvocar(reptilId: string) {
@@ -98,9 +128,19 @@ export default function MesaPage() {
 
       <TurnBanner turno={state.turno} numeroTurno={state.numeroTurno} fase={state.fase} nombreTurno={nombreTurno} />
 
-      <Board gameState={state} roster={roster} sacudirLado={sacudirLado} ultimaInvocacion={ultimaInvocacion} />
+      <Board
+        gameState={state}
+        roster={roster}
+        sacudirLado={sacudirLado}
+        ultimaInvocacion={ultimaInvocacion}
+        ultimoDerrotado={ultimoDerrotado}
+      />
 
-      {state.fase !== "terminado" && (
+      {esTurnoDeLaIA && state.fase !== "terminado" && (
+        <p className="animate-pulse text-center text-sm text-foreground-muted">🤖 {nombreTurno} está pensando...</p>
+      )}
+
+      {!esTurnoDeLaIA && state.fase !== "terminado" && (
         <Card>
           <CardHeader>
             <CardTitle>{invocarDisponible ? `Invocar — turno de ${nombreTurno}` : `Atacar — turno de ${nombreTurno}`}</CardTitle>
@@ -167,7 +207,7 @@ export default function MesaPage() {
       <AttackAnimation
         resultado={ultimoResultado}
         habilidadNombre={ultimoResultado ? abilities.find((a) => a.id === ultimoResultado.habilidadId)?.nombre : undefined}
-        onComplete={() => useGameStore.setState({ ultimoResultado: null })}
+        onComplete={() => useGameStore.setState({ ultimoResultado: null, ultimoDerrotado: null })}
       />
 
       <AnimatePresence>

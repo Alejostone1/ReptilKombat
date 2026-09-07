@@ -25,6 +25,15 @@ const SIZE_CLASSES = {
   lg: "w-36 sm:w-48 md:w-56",
 };
 
+/** Degradación visual progresiva según el % de HP restante: sana → dañada → gris → gris+rojiza → derrotada. */
+function filtroPorHp(pctHp: number): string {
+  if (pctHp <= 0) return "grayscale(1) brightness(0.55)";
+  if (pctHp <= 25) return "grayscale(0.7) sepia(0.35) hue-rotate(-40deg) saturate(1.4) brightness(0.85)";
+  if (pctHp <= 50) return "grayscale(0.45) brightness(0.92)";
+  if (pctHp <= 75) return "grayscale(0.15)";
+  return "grayscale(0) brightness(1)";
+}
+
 export function GameCard({
   reptil,
   hpActual,
@@ -63,41 +72,58 @@ export function GameCard({
       )}
       style={{ borderColor: color }}
     >
-      <div className="relative aspect-square w-full">
-        <ReptileImage nombre={reptil.nombre} nombreCientifico={reptil.nombreCientifico} className="h-full w-full" />
-        <span
-          className="absolute left-1 top-1 rounded-full px-1.5 py-0.5 text-[10px] font-bold"
-          style={{ backgroundColor: `${color}CC`, color: "#04120b" }}
-        >
-          {AFFINITY_META[reptil.afinidad].emoji}
-        </span>
-      </div>
-
-      <div className="space-y-1 p-2">
-        <p className="truncate text-xs font-bold text-foreground">{reptil.nombre}</p>
-
-        <div className="h-1.5 w-full overflow-hidden rounded-full bg-panel-secondary">
-          <motion.div
-            className={cn("h-full rounded-full", pctHp > 50 ? "bg-state-ok" : pctHp > 20 ? "bg-state-warn" : "bg-state-danger")}
-            animate={{ width: `${pctHp}%` }}
-            transition={{ duration: 0.5 }}
-          />
+      <motion.div
+        className="flex h-full flex-col"
+        animate={{ filter: filtroPorHp(pctHp) }}
+        transition={{ duration: 0.6 }}
+      >
+        <div className="relative aspect-square w-full">
+          <ReptileImage nombre={reptil.nombre} nombreCientifico={reptil.nombreCientifico} className="h-full w-full" />
+          <span
+            className="absolute left-1 top-1 rounded-full px-1.5 py-0.5 text-[10px] font-bold"
+            style={{ backgroundColor: `${color}CC`, color: "#04120b" }}
+          >
+            {AFFINITY_META[reptil.afinidad].emoji}
+          </span>
         </div>
-        <p className="text-right font-mono text-[10px] text-foreground-muted">
-          {STAT_LABELS.hp.emoji} {Math.round(hp)}/{hpMax}
-        </p>
 
-        {size !== "sm" && (
-          <div className="grid grid-cols-3 gap-0.5 pt-1 text-center text-[9px] text-foreground-muted">
-            {STAT_ORDER.filter((k) => k !== "hp").map((k) => (
-              <div key={k} title={STAT_LABELS[k].largo}>
-                {STAT_LABELS[k].emoji}
-                {reptil[k]}
-              </div>
-            ))}
+        <div className="space-y-1 p-2">
+          <p className="truncate text-xs font-bold text-foreground">{reptil.nombre}</p>
+
+          <div className="h-1.5 w-full overflow-hidden rounded-full bg-panel-secondary">
+            <motion.div
+              className={cn("h-full rounded-full", pctHp > 50 ? "bg-state-ok" : pctHp > 20 ? "bg-state-warn" : "bg-state-danger")}
+              animate={{ width: `${pctHp}%` }}
+              transition={{ duration: 0.5 }}
+            />
           </div>
-        )}
-      </div>
+          <p className="text-right font-mono text-[10px] text-foreground-muted">
+            {STAT_LABELS.hp.emoji} {Math.round(hp)}/{hpMax}
+          </p>
+
+          {size !== "sm" && (
+            <div className="grid grid-cols-3 gap-0.5 pt-1 text-center text-[9px] text-foreground-muted">
+              {STAT_ORDER.filter((k) => k !== "hp").map((k) => (
+                <div key={k} title={STAT_LABELS[k].largo}>
+                  {STAT_LABELS[k].emoji}
+                  {reptil[k]}
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      </motion.div>
+
+      {pctHp <= 0 && (
+        <motion.div
+          initial={{ opacity: 0, scale: 0.6 }}
+          animate={{ opacity: 1, scale: 1 }}
+          transition={{ delay: 0.15, type: "spring", stiffness: 300 }}
+          className="absolute inset-0 z-10 flex items-center justify-center bg-black/55"
+        >
+          <span className="text-2xl drop-shadow-[0_0_6px_rgba(0,0,0,0.8)]">💀</span>
+        </motion.div>
+      )}
     </motion.button>
   );
 }

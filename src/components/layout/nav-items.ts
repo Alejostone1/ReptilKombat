@@ -1,4 +1,5 @@
 import {
+  Home,
   LayoutDashboard,
   Rows3,
   GitCompare,
@@ -15,7 +16,8 @@ import {
 } from "lucide-react";
 
 export const NAV_ITEMS = [
-  { href: "/", label: "Dashboard", icon: LayoutDashboard },
+  { href: "/", label: "Inicio", icon: Home },
+  { href: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
   { href: "/jugar", label: "Jugar", icon: Gamepad2 },
   { href: "/roster", label: "Roster", icon: Rows3 },
   { href: "/comparador", label: "Comparador", icon: GitCompare },

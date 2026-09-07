@@ -198,6 +198,29 @@ export function verificarGanador(state: GameState): Lado | null {
   return null;
 }
 
+/**
+ * Vista pública del estado para un espectador/jugador concreto: oculta el
+ * mazo (cartas aún no jugadas) del lado contrario, reemplazando cada id por
+ * "?" — mismo largo, sin revelar cuáles son. `activo`/`cementerio` del rival
+ * quedan visibles porque ya se jugaron (información legítimamente pública).
+ * Esto es lo único que el servidor debe enviar por red al lado que mira.
+ */
+export function toPublicView(state: GameState, ladoQueMira: Lado): GameState {
+  const ladoRival = otroLado(ladoQueMira);
+  const rival = jugador(state, ladoRival);
+  const rivalRedactado: JugadorState = { ...rival, mazo: rival.mazo.map(() => "?") };
+  return conJugador(state, ladoRival, rivalRedactado);
+}
+
+/** HP total del "ejército": suma del HP completo de las cartas aún no jugadas más el HP actual de la activa. */
+export function totalVidaEjercito(j: JugadorState, roster: Reptil[]): number {
+  const vidaMazo = j.mazo.reduce((acc, id) => {
+    const r = roster.find((x) => x.id === id);
+    return acc + (r?.hp ?? 0);
+  }, 0);
+  return vidaMazo + (j.activo?.hpActual ?? 0);
+}
+
 function avanzarTurno(state: GameState): GameState {
   const ganador = verificarGanador(state);
   if (ganador) {

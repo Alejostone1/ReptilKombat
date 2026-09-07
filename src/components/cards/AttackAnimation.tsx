@@ -5,7 +5,7 @@ import { AnimatePresence, motion } from "framer-motion";
 import type { ResultadoAtaque } from "@/lib/card-game/engine";
 
 interface AttackAnimationProps {
-  resultado: ResultadoAtaque | null;
+  resultado: Omit<ResultadoAtaque, "state"> | null;
   habilidadNombre?: string;
   onComplete: () => void;
 }

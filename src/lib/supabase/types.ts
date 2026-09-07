@@ -90,12 +90,21 @@ export interface EngineConfigRow {
   divisor_dano: number;
 }
 
+export type EstadoSala = "WAITING" | "READY" | "IN_PROGRESS" | "FINISHED" | "CANCELLED";
+export type ModoSala = "amigo" | "aleatorio";
+
 export interface GameRoomRow {
   id: string;
   codigo: string;
   estado: unknown;
+  estado_sala: EstadoSala;
+  modo: ModoSala;
+  mazo_a: string[] | null;
+  mazo_b: string[] | null;
+  ganador: "A" | "B" | null;
   creado_en: string;
   actualizado_en: string;
+  finalizado_en: string | null;
 }
 
 export interface GamePlayerRow {
@@ -103,6 +112,8 @@ export interface GamePlayerRow {
   room_id: string;
   nombre: string;
   lado: "A" | "B";
+  session_id: string;
+  view_token: string;
   conectado_en: string;
 }
 
@@ -112,4 +123,13 @@ export interface GameMoveRow {
   lado: "A" | "B";
   accion: unknown;
   creado_en: string;
+}
+
+export interface MatchmakingQueueRow {
+  id: string;
+  session_id: string;
+  nombre: string;
+  mazo: string[];
+  creado_en: string;
+  emparejado_codigo: string | null;
 }

@@ -8,7 +8,7 @@ import { Input } from "@/components/ui/Input";
 import { Button } from "@/components/ui/Button";
 import { Card } from "@/components/ui/Card";
 
-export default function JugarLobbyPage() {
+export default function JugarLocalPage() {
   const router = useRouter();
   const { roster } = useRoster();
   const { mazoA, mazoB, nombreA, nombreB, setNombreA, setNombreB, toggleCarta, puedeIniciar, iniciar } = useGameStore();
@@ -21,7 +21,7 @@ export default function JugarLobbyPage() {
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-2xl font-bold text-foreground">🎮 Jugar</h1>
+        <h1 className="text-2xl font-bold text-foreground">🎮 Este dispositivo</h1>
         <p className="text-sm text-foreground-muted">
           Arma tu mazo de hasta 5 reptiles y juega una partida por turnos, cara a cara en el mismo dispositivo. El
           daño se calcula con el mismo motor que el simulador — sin sorpresas, todo verificable.

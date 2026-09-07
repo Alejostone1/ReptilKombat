@@ -10,6 +10,8 @@ interface BoardProps {
   roster: Reptil[];
   sacudirLado: Lado | null;
   ultimaInvocacion: Lado | null;
+  /** Reptil que acaba de caer a 0 HP: se muestra un instante en su estado "derrotada" antes de dejar el slot vacío. */
+  ultimoDerrotado?: { lado: Lado; reptilId: string } | null;
 }
 
 function LadoInfo({
@@ -34,9 +36,11 @@ function LadoInfo({
 
 const EMPTY_SLOT_CLASSES = "flex aspect-[3/4] w-36 items-center justify-center rounded-xl border-2 border-dashed border-border-subtle p-3 text-center text-xs text-foreground-muted sm:w-48 md:w-56";
 
-export function Board({ gameState, roster, sacudirLado, ultimaInvocacion }: BoardProps) {
+export function Board({ gameState, roster, sacudirLado, ultimaInvocacion, ultimoDerrotado }: BoardProps) {
   const reptilA = gameState.jugadorA.activo ? roster.find((r) => r.id === gameState.jugadorA.activo!.reptilId) : null;
   const reptilB = gameState.jugadorB.activo ? roster.find((r) => r.id === gameState.jugadorB.activo!.reptilId) : null;
+  const derrotadoA = !reptilA && ultimoDerrotado?.lado === "A" ? roster.find((r) => r.id === ultimoDerrotado.reptilId) : null;
+  const derrotadoB = !reptilB && ultimoDerrotado?.lado === "B" ? roster.find((r) => r.id === ultimoDerrotado.reptilId) : null;
 
   return (
     <div className="rounded-2xl border border-border-subtle bg-panel/60 p-3 sm:p-6">
@@ -65,6 +69,8 @@ export function Board({ gameState, roster, sacudirLado, ultimaInvocacion }: Boar
               sacudir={sacudirLado === "A"}
               animarEntrada={ultimaInvocacion === "A"}
             />
+          ) : derrotadoA ? (
+            <GameCard reptil={derrotadoA} hpActual={0} size="lg" />
           ) : (
             <div className={EMPTY_SLOT_CLASSES}>Sin reptil activo</div>
           )}
@@ -81,6 +87,8 @@ export function Board({ gameState, roster, sacudirLado, ultimaInvocacion }: Boar
               sacudir={sacudirLado === "B"}
               animarEntrada={ultimaInvocacion === "B"}
             />
+          ) : derrotadoB ? (
+            <GameCard reptil={derrotadoB} hpActual={0} size="lg" />
           ) : (
             <div className={EMPTY_SLOT_CLASSES}>Sin reptil activo</div>
           )}

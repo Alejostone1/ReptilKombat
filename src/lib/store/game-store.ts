@@ -15,18 +15,34 @@ interface GameStoreState {
   nombreB: string;
   state: GameState | null;
   ultimoResultado: ResultadoAtaque | null;
+  /**
+   * El motor limpia `activo` a null en el mismo paso en que un reptil llega a 0 HP
+   * (pasa directo a cementerio), así que el Board nunca vería una carta con HP 0 sin esto:
+   * guarda quién fue derrotado en el último ataque para que la carta se muestre brevemente
+   * en su estado "derrotada" antes de desaparecer del tablero.
+   */
+  ultimoDerrotado: { lado: Lado; reptilId: string } | null;
   /** true justo después de una acción: se muestra la pantalla "pasa el dispositivo" antes de revelar el tablero al siguiente jugador. */
   pantallaTransicion: boolean;
+  /** Cuando está activo, `ladoIA` juega solo (ver useIaAutoplay) — no se muestra "pasa el dispositivo" en su turno. */
+  modoIA: boolean;
+  ladoIA: Lado | null;
 
   setNombreA: (n: string) => void;
   setNombreB: (n: string) => void;
   toggleCarta: (lado: Lado, reptilId: string) => void;
   puedeIniciar: () => boolean;
   iniciar: (nombreA: string, nombreB: string) => void;
+  iniciarVsIA: (mazoJugador: string[], nombreJugador: string, mazoIA: string[]) => void;
   confirmarTurno: () => void;
   invocar: (reptilId: string, roster: Reptil[]) => void;
   atacar: (habilidadId: string, roster: Reptil[], abilities: Habilidad[], config: EngineConfig) => void;
+  limpiarUltimoDerrotado: () => void;
   reiniciar: () => void;
+}
+
+function otroLado(lado: Lado): Lado {
+  return lado === "A" ? "B" : "A";
 }
 
 export const useGameStore = create<GameStoreState>()((set, get) => ({
@@ -36,7 +52,10 @@ export const useGameStore = create<GameStoreState>()((set, get) => ({
   nombreB: "Jugador B",
   state: null,
   ultimoResultado: null,
+  ultimoDerrotado: null,
   pantallaTransicion: false,
+  modoIA: false,
+  ladoIA: null,
 
   setNombreA: (n) => set({ nombreA: n }),
   setNombreB: (n) => set({ nombreB: n }),
@@ -62,7 +81,32 @@ export const useGameStore = create<GameStoreState>()((set, get) => ({
   iniciar: (nombreA, nombreB) => {
     const s = get();
     const state = crearPartida(s.mazoA, s.mazoB, nombreA, nombreB);
-    set({ state, nombreA, nombreB, ultimoResultado: null, pantallaTransicion: false });
+    set({
+      state,
+      nombreA,
+      nombreB,
+      ultimoResultado: null,
+      ultimoDerrotado: null,
+      pantallaTransicion: false,
+      modoIA: false,
+      ladoIA: null,
+    });
+  },
+
+  iniciarVsIA: (mazoJugador, nombreJugador, mazoIA) => {
+    const state = crearPartida(mazoJugador, mazoIA, nombreJugador, "IA");
+    set({
+      state,
+      mazoA: mazoJugador,
+      mazoB: mazoIA,
+      nombreA: nombreJugador,
+      nombreB: "IA",
+      ultimoResultado: null,
+      ultimoDerrotado: null,
+      pantallaTransicion: false,
+      modoIA: true,
+      ladoIA: "B",
+    });
   },
 
   confirmarTurno: () => set({ pantallaTransicion: false }),
@@ -71,15 +115,38 @@ export const useGameStore = create<GameStoreState>()((set, get) => ({
     const s = get();
     if (!s.state) return;
     const nuevoEstado = invocarEngine(s.state, reptilId, roster);
-    set({ state: nuevoEstado, ultimoResultado: null, pantallaTransicion: true });
+    set({ state: nuevoEstado, ultimoResultado: null, ultimoDerrotado: null, pantallaTransicion: true });
   },
 
   atacar: (habilidadId, roster, abilities, config) => {
     const s = get();
     if (!s.state) return;
+    const ladoDefensor = otroLado(s.state.turno);
+    const reptilIdDefensor = jugadorDe(s.state, ladoDefensor).activo?.reptilId ?? null;
     const resultado = atacarEngine(s.state, habilidadId, roster, abilities, config);
-    set({ state: resultado.state, ultimoResultado: resultado, pantallaTransicion: true });
+    set({
+      state: resultado.state,
+      ultimoResultado: resultado,
+      ultimoDerrotado: resultado.derrotado && reptilIdDefensor ? { lado: ladoDefensor, reptilId: reptilIdDefensor } : null,
+      pantallaTransicion: true,
+    });
   },
 
-  reiniciar: () => set({ mazoA: [], mazoB: [], state: null, ultimoResultado: null, pantallaTransicion: false }),
+  limpiarUltimoDerrotado: () => set({ ultimoDerrotado: null }),
+
+  reiniciar: () =>
+    set({
+      mazoA: [],
+      mazoB: [],
+      state: null,
+      ultimoResultado: null,
+      ultimoDerrotado: null,
+      pantallaTransicion: false,
+      modoIA: false,
+      ladoIA: null,
+    }),
 }));
+
+function jugadorDe(state: GameState, lado: Lado) {
+  return lado === "A" ? state.jugadorA : state.jugadorB;
+}
