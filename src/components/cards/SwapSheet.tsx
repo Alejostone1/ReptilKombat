@@ -118,6 +118,11 @@ export function SwapSheet({ abierto, candidatos, onElegir, onClose }: SwapSheetP
                       <p className="text-right font-mono text-[10px] text-foreground-muted">
                         ❤️ {Math.round(hpActual)}/{hpMax}
                       </p>
+                      <p className="flex justify-between text-[10px] font-semibold text-foreground">
+                        <span>⚔️{reptil.atk}</span>
+                        <span>🛡️{reptil.def}</span>
+                        <span>⚡{reptil.spd}</span>
+                      </p>
                     </div>
                   </button>
                 );
@@ -140,6 +145,7 @@ export function ManoInvocar({ candidatos, onElegir }: { candidatos: CandidatoCam
           reptil={reptil}
           hpActual={origen === "banca" ? hpActual : undefined}
           size="sm"
+          mostrarStats
           seleccionable
           onClick={() => onElegir(reptil.id)}
         />

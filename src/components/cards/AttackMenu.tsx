@@ -1,16 +1,13 @@
 "use client";
 
 import type { OpcionAtaque } from "@/lib/card-game/opciones-ataque";
-import type { MemoriaAtaques, NivelDano } from "@/lib/card-game/memoria-ataques";
-import { ETIQUETA_NIVEL } from "@/lib/card-game/memoria-ataques";
 import { CATEGORIA_INFO } from "@/lib/game-engine/categorias";
 import type { MatchupTier } from "@/types/affinity";
 import { cn } from "@/lib/utils";
 
 interface AttackMenuProps {
   opciones: OpcionAtaque[];
-  memoria: MemoriaAtaques;
-  /** HIDE_ATTACK_DAMAGE: sin números, sin "mejor opción", orden fijo. Apagado = menú clásico con ≈daño. */
+  /** HIDE_ATTACK_DAMAGE: sin números, sin "mejor opción", sin etiquetas de fuerza, orden fijo. Apagado = menú clásico con ≈daño. */
   ocultarDano: boolean;
   onAtacar: (habilidadId: string) => void;
   /** Bloquea toques mientras se resuelve una acción (online: evita doble envío). */
@@ -23,25 +20,17 @@ const TIER_HINT: Record<MatchupTier, { emoji: string; texto: string; clase: stri
   neutral: { emoji: "⚪", texto: "Neutral", clase: "text-foreground-muted" },
 };
 
-const CLASE_NIVEL: Record<NivelDano, string> = {
-  debil: "bg-state-warn/20 text-state-warn",
-  medio: "bg-reptile-green/20 text-reptile-green",
-  fuerte: "bg-state-danger/20 text-state-danger",
-  efecto: "bg-affinity-venenoso/25 text-affinity-venenoso",
-};
-
 /**
  * Menú de ataques (celular primero: 2 columnas con zonas táctiles de ≥64 px). Con el daño oculto el
- * jugador solo ve nombre, tipo de ataque, ventaja de afinidad, costo y recarga, más lo que ya
- * aprendió probándolo ("débil · medio · fuerte"). Compartido por la mesa local y la sala online.
+ * jugador solo ve nombre, tipo de ataque, ventaja de afinidad, costo y recarga: el juego NO le dice
+ * qué ataque es débil o fuerte; lo deduce mirando las estadísticas de las cartas. Compartido por la mesa local y la sala online.
  */
-export function AttackMenu({ opciones, memoria, ocultarDano, onAtacar, ocupado }: AttackMenuProps) {
+export function AttackMenu({ opciones, ocultarDano, onAtacar, ocupado }: AttackMenuProps) {
   const mejor = ocultarDano ? -1 : opciones.findIndex((o) => o.disponible);
   return (
     <div className="grid grid-cols-2 gap-2">
       {opciones.map(({ habilidad: h, tier, disponible, cooldownRestante, danoEstimado }, i) => {
         const cat = CATEGORIA_INFO[h.categoria];
-        const nivel = memoria[h.id];
         const hint = TIER_HINT[tier];
         return (
           <button
@@ -49,7 +38,7 @@ export function AttackMenu({ opciones, memoria, ocultarDano, onAtacar, ocupado }
             type="button"
             onClick={() => disponible && !ocupado && onAtacar(h.id)}
             disabled={!disponible || ocupado}
-            aria-label={`${h.nombre}, ${cat.nombre}${nivel ? `, golpe ${ETIQUETA_NIVEL[nivel]}` : ", sin probar"}${disponible ? "" : ", no disponible"}`}
+            aria-label={`${h.nombre}, ${cat.nombre}${disponible ? "" : ", no disponible"}`}
             style={{ touchAction: "manipulation" }}
             className={cn(
               "flex min-h-[4.25rem] flex-col justify-between gap-1 rounded-xl border bg-panel-secondary px-2.5 py-2 text-left transition active:scale-[0.97]",
@@ -74,13 +63,7 @@ export function AttackMenu({ opciones, memoria, ocultarDano, onAtacar, ocupado }
               ) : h.cooldownTurnos > 0 ? (
                 <span className="text-state-ok">✅</span>
               ) : null}
-              {ocultarDano ? (
-                <span className={cn("rounded-full px-1.5 py-px font-semibold", nivel ? CLASE_NIVEL[nivel] : "bg-panel text-foreground-muted")}>
-                  {nivel ? ETIQUETA_NIVEL[nivel] : "❔ sin probar"}
-                </span>
-              ) : (
-                <span className="rounded-full bg-reptile-green/15 px-1.5 py-px font-semibold text-reptile-green">≈{Math.round(danoEstimado)}</span>
-              )}
+              {!ocultarDano && <span className="rounded-full bg-reptile-green/15 px-1.5 py-px font-semibold text-reptile-green">≈{Math.round(danoEstimado)}</span>}
               {!ocultarDano && i === mejor && <span className="font-bold text-state-ok">★ Mejor</span>}
             </span>
           </button>

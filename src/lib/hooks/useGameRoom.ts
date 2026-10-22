@@ -7,8 +7,6 @@ import type { GameState, Lado } from "@/lib/card-game/types";
 import type { ResultadoAtaque } from "@/lib/card-game/engine";
 import type { EstadoSala } from "@/lib/supabase/types";
 import { obtenerSessionId } from "@/lib/utils/session";
-import { nivelDeGolpe, recordarAtaque, type MemoriaAtaques } from "@/lib/card-game/memoria-ataques";
-import { DEFAULT_ENGINE_CONFIG } from "@/lib/game-engine/config";
 import { INTERVALO_PING_MS } from "@/lib/card-game/conexion";
 
 type Conexion = "conectando" | "conectado" | "reconectando";
@@ -20,8 +18,6 @@ interface RoomHookState {
   ultimoDerrotado: { lado: Lado; reptilId: string } | null;
   /** Quién atacó (según el turno del estado previo) + contador, para animar tanto mis ataques como los del rival. */
   ultimoAtaque: { id: number; atacante: Lado } | null;
-  /** Lo que aprendí de MIS ataques en esta partida (solo cliente; nunca se envía al servidor). */
-  memoria: MemoriaAtaques;
   estadoSala: EstadoSala | null;
   lado: Lado | null;
   nombrePropio: string | null;
@@ -59,7 +55,6 @@ export function useGameRoom(codigo: string | null, viewToken: string | null) {
     ultimoResultado: null,
     ultimoDerrotado: null,
     ultimoAtaque: null,
-    memoria: {},
     estadoSala: null,
     lado: null,
     nombrePropio: null,
@@ -188,15 +183,8 @@ export function useGameRoom(codigo: string | null, viewToken: string | null) {
       }
       setEstado((s) => {
         const r: Omit<ResultadoAtaque, "state"> | null = json.ultimoResultado;
-        let memoria = s.memoria;
-        if (accion.tipo === "atacar" && r && s.estado && s.lado) {
-          const rival = s.lado === "A" ? s.estado.jugadorB : s.estado.jugadorA;
-          const hpMax = rival.activo ? (s.estado.configuracion.reptiles[rival.activo.reptilId]?.hp ?? 0) : 0;
-          memoria = recordarAtaque(memoria, accion.habilidadId, nivelDeGolpe(r.danoEsperado, r.critico, DEFAULT_ENGINE_CONFIG.criticoMultiplicador, hpMax));
-        }
         return {
         ...s,
-        memoria,
         ultimoAtaque: derivarUltimoAtaque(s.estado, r, s.ultimoAtaque?.id ?? 0) ?? s.ultimoAtaque,
         estado: json.estado,
         ultimoResultado: json.ultimoResultado,

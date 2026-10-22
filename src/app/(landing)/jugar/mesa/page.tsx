@@ -25,7 +25,7 @@ export default function MesaPage() {
   const router = useRouter();
   const { roster, abilities } = useRoster();
   const { config } = useEngineData();
-  const { state, ultimoResultado, ultimoDerrotado, ultimoAtaque, memoria, pantallaTransicion, modoIA, ladoIA, personalidadIA, invocar, atacar, cambiar, confirmarTurno, reiniciar } =
+  const { state, ultimoResultado, ultimoDerrotado, ultimoAtaque, pantallaTransicion, modoIA, ladoIA, personalidadIA, invocar, atacar, cambiar, confirmarTurno, reiniciar } =
     useGameStore();
   const [sacudirLado, setSacudirLado] = useState<Lado | null>(null);
   const [ultimaInvocacion, setUltimaInvocacion] = useState<Lado | null>(null);
@@ -145,7 +145,7 @@ export default function MesaPage() {
       {!esTurnoDeLaIA && state.fase !== "terminado" && (
         <ActionDock titulo={invocarDisponible ? `Invoca una carta — ${nombreTurno}` : `Elige tu ataque — ${nombreTurno}`}>
           {invocarDisponible && <ManoInvocar candidatos={candidatos} onElegir={onInvocar} />}
-          {atacarDisponible && <AttackMenu opciones={opciones} memoria={memoria} ocultarDano={FEATURES.HIDE_ATTACK_DAMAGE} onAtacar={onAtacar} />}
+          {atacarDisponible && <AttackMenu opciones={opciones} ocultarDano={FEATURES.HIDE_ATTACK_DAMAGE} onAtacar={onAtacar} />}
           {atacarDisponible && puedeCambiarCarta && (
             <button
               type="button"

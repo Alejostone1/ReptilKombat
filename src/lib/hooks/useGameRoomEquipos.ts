@@ -7,8 +7,6 @@ import type { Lado } from "@/lib/card-game/types";
 import type { EstadoEquipos, ResultadoAtaqueEquipos } from "@/lib/card-game/engine-equipos";
 import type { EstadoSala } from "@/lib/supabase/types";
 import { obtenerSessionId } from "@/lib/utils/session";
-import { nivelDeGolpe, recordarAtaque, type MemoriaAtaques } from "@/lib/card-game/memoria-ataques";
-import { DEFAULT_ENGINE_CONFIG } from "@/lib/game-engine/config";
 import { INTERVALO_PING_MS } from "@/lib/card-game/conexion";
 
 type Conexion = "conectando" | "conectado" | "reconectando";
@@ -27,7 +25,6 @@ interface EstadoHook {
   ultimoAtaque: { id: number; atacanteIdx: number; objetivoIdx: number } | null;
   /** Carta derrotada en el último ataque: desaparece de `activo` en el mismo update, así que se guarda para mostrarla un instante. */
   ultimoDerrotado: { idx: number; reptilId: string } | null;
-  memoria: MemoriaAtaques;
   estadoSala: EstadoSala | null;
   idx: number | null;
   lado: Lado | null;
@@ -59,7 +56,6 @@ export function useGameRoomEquipos(codigo: string | null, viewToken: string | nu
     ultimoResultado: null,
     ultimoAtaque: null,
     ultimoDerrotado: null,
-    memoria: {},
     estadoSala: null,
     idx: null,
     lado: null,
@@ -182,14 +178,8 @@ export function useGameRoomEquipos(codigo: string | null, viewToken: string | nu
       }
       setS((p) => {
         const r: ResultadoSinEstado | null = json.ultimoResultado;
-        let memoria = p.memoria;
-        if (accion.tipo === "atacar" && r && p.estado) {
-          const hpMax = p.estado.configuracion.reptiles[p.estado.jugadores[r.objetivoIdx]?.activo?.reptilId ?? ""]?.hp ?? 0;
-          memoria = recordarAtaque(memoria, accion.habilidadId, nivelDeGolpe(r.danoEsperado, r.critico, DEFAULT_ENGINE_CONFIG.criticoMultiplicador, hpMax));
-        }
         return {
           ...p,
-          memoria,
           estado: json.estado,
           ultimoResultado: r,
           ultimoAtaque: derivarAtaque(p.estado, r, p.ultimoAtaque?.id ?? 0) ?? p.ultimoAtaque,

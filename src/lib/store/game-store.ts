@@ -8,7 +8,6 @@ import type { GameState, Lado } from "@/lib/card-game/types";
 import { MAX_CARTAS_MAZO } from "@/lib/card-game/types";
 import { crearPartida, invocar as invocarEngine, atacar as atacarEngine, cambiar as cambiarEngine, type ResultadoAtaque } from "@/lib/card-game/engine";
 import type { PersonalidadIA } from "@/lib/card-game/ai";
-import { nivelDeGolpe, recordarAtaque, type MemoriaAtaques } from "@/lib/card-game/memoria-ataques";
 
 interface GameStoreState {
   mazoA: string[];
@@ -26,8 +25,6 @@ interface GameStoreState {
   ultimoDerrotado: { lado: Lado; reptilId: string } | null;
   /** Quién atacó en el último ataque (tras atacar el turno ya pasó al rival) + contador para re-disparar animaciones. */
   ultimoAtaque: { id: number; atacante: Lado } | null;
-  /** Lo que cada jugador ha aprendido de sus ataques (por id de habilidad; son únicos por reptil, no se cruzan entre jugadores). */
-  memoria: MemoriaAtaques;
   /** true justo después de una acción: se muestra la pantalla "pasa el dispositivo" antes de revelar el tablero al siguiente jugador. */
   pantallaTransicion: boolean;
   /** Cuando está activo, `ladoIA` juega solo (ver useIaAutoplay) — no se muestra "pasa el dispositivo" en su turno. */
@@ -71,7 +68,6 @@ export const useGameStore = create<GameStoreState>()((set, get) => ({
   ultimoResultado: null,
   ultimoDerrotado: null,
   ultimoAtaque: null,
-  memoria: {},
   pantallaTransicion: false,
   modoIA: false,
   ladoIA: null,
@@ -108,7 +104,6 @@ export const useGameStore = create<GameStoreState>()((set, get) => ({
       ultimoResultado: null,
       ultimoDerrotado: null,
       ultimoAtaque: null,
-      memoria: {},
       pantallaTransicion: false,
       modoIA: false,
       ladoIA: null,
@@ -126,7 +121,6 @@ export const useGameStore = create<GameStoreState>()((set, get) => ({
       ultimoResultado: null,
       ultimoDerrotado: null,
       ultimoAtaque: null,
-      memoria: {},
       pantallaTransicion: false,
       modoIA: true,
       ladoIA: "B",
@@ -149,13 +143,10 @@ export const useGameStore = create<GameStoreState>()((set, get) => ({
     const ladoDefensor = otroLado(s.state.turno);
     const reptilIdDefensor = jugadorDe(s.state, ladoDefensor).activo?.reptilId ?? null;
     const resultado = atacarEngine(s.state, habilidadId, roster, abilities, config);
-    const hpMaxDefensor = s.state.configuracion.reptiles[reptilIdDefensor ?? ""]?.hp ?? 0;
-    const nivel = nivelDeGolpe(resultado.danoEsperado, resultado.critico, config.criticoMultiplicador, hpMaxDefensor);
     set({
       state: resultado.state,
       ultimoResultado: resultado,
       ultimoAtaque: { id: (s.ultimoAtaque?.id ?? 0) + 1, atacante: s.state.turno },
-      memoria: recordarAtaque(s.memoria, habilidadId, nivel),
       ultimoDerrotado: resultado.derrotado && reptilIdDefensor ? { lado: ladoDefensor, reptilId: reptilIdDefensor } : null,
       pantallaTransicion: !s.modoIA,
     });
@@ -178,7 +169,6 @@ export const useGameStore = create<GameStoreState>()((set, get) => ({
       ultimoResultado: null,
       ultimoDerrotado: null,
       ultimoAtaque: null,
-      memoria: {},
       pantallaTransicion: false,
       modoIA: false,
       ladoIA: null,

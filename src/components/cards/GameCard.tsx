@@ -15,6 +15,8 @@ interface GameCardProps {
   energiaActual?: number;
   energiaMax?: number;
   size?: "sm" | "md" | "lg";
+  /** Muestra ⚔️ ataque, 🛡️ defensa y ⚡ velocidad también en tamaño "sm" (mano al invocar). */
+  mostrarStats?: boolean;
   seleccionable?: boolean;
   seleccionada?: boolean;
   deshabilitada?: boolean;
@@ -75,6 +77,7 @@ export function GameCard({
   energiaActual,
   energiaMax,
   size = "md",
+  mostrarStats,
   seleccionable,
   seleccionada,
   deshabilitada,
@@ -192,8 +195,19 @@ export function GameCard({
             </>
           )}
 
+          {size === "sm" && mostrarStats && (
+            <div className="grid grid-cols-3 gap-0.5 pt-0.5 text-center text-[10px] font-semibold text-foreground">
+              {(["atk", "def", "spd"] as const).map((k) => (
+                <div key={k} title={STAT_LABELS[k].largo}>
+                  {STAT_LABELS[k].emoji}
+                  {reptil[k]}
+                </div>
+              ))}
+            </div>
+          )}
+
           {size !== "sm" && (
-            <div className="grid grid-cols-3 gap-0.5 pt-1 text-center text-[9px] text-foreground-muted">
+            <div className="grid grid-cols-3 gap-0.5 pt-1 text-center text-[10px] font-semibold text-foreground">
               {STAT_ORDER.filter((k) => k !== "hp").map((k) => (
                 <div key={k} title={STAT_LABELS[k].largo}>
                   {STAT_LABELS[k].emoji}

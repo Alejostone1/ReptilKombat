@@ -265,7 +265,7 @@ function Sala1v1Online() {
       {room.estado.fase !== "terminado" && (invocarDisponible || atacarDisponible) && (
         <ActionDock titulo={invocarDisponible ? "Invoca tu carta" : "Elige tu ataque"}>
           {invocarDisponible && <ManoInvocar candidatos={candidatos} onElegir={(id) => room.invocar(id)} />}
-          {atacarDisponible && <AttackMenu opciones={opciones} memoria={room.memoria} ocultarDano={FEATURES.HIDE_ATTACK_DAMAGE} onAtacar={onAtacar} />}
+          {atacarDisponible && <AttackMenu opciones={opciones} ocultarDano={FEATURES.HIDE_ATTACK_DAMAGE} onAtacar={onAtacar} />}
           {atacarDisponible && FEATURES.CARD_SWAP && puedeCambiar(room.estado) && (
             <button
               type="button"

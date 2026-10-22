@@ -340,7 +340,7 @@ export function Sala2v2({ codigo, viewToken }: { codigo: string; viewToken: stri
           }
         >
           {invocar && <ManoInvocar candidatos={candidatos} onElegir={(id) => room.invocar(id)} />}
-          {atacar && <AttackMenu opciones={opciones} memoria={room.memoria} ocultarDano={FEATURES.HIDE_ATTACK_DAMAGE} onAtacar={(id) => room.atacar(id, objetivo!)} />}
+          {atacar && <AttackMenu opciones={opciones} ocultarDano={FEATURES.HIDE_ATTACK_DAMAGE} onAtacar={(id) => room.atacar(id, objetivo!)} />}
           {atacar && FEATURES.CARD_SWAP && puedeCambiarEquipos(estado) && (
             <button
               type="button"
