@@ -4,8 +4,8 @@ import type { MatchupTier } from "@/types/affinity";
 import type { EngineConfig } from "@/lib/game-engine/config";
 import { calculateDamage } from "@/lib/game-engine/damage";
 import { getAffinityTier } from "@/lib/game-engine/affinities";
-import type { GameState } from "./types";
-import { habilidadesDisponibles, puedeUsarHabilidad, reptilDesdeStats, multiplicadorEstado } from "./engine";
+import type { CartaEnJuego, Configuracion, GameState } from "./types";
+import { puedeUsarHabilidad, reptilDesdeStats, multiplicadorEstado } from "./engine";
 
 export interface OpcionAtaque {
   habilidad: Habilidad;
@@ -29,9 +29,23 @@ export function opcionesDeAtaque(state: GameState, abilities: Habilidad[], confi
   const propio = lado === "A" ? state.jugadorA : state.jugadorB;
   const rival = lado === "A" ? state.jugadorB : state.jugadorA;
   if (!propio.activo || !rival.activo) return [];
-  const atacanteStats = state.configuracion.reptiles[propio.activo.reptilId];
-  const defensorStats = state.configuracion.reptiles[rival.activo.reptilId];
+  return opcionesContra(propio.activo, rival.activo, state.configuracion, abilities, config, ocultarDano);
+}
+
+/** Núcleo compartido (1 vs 1 y 2 vs 2): opciones de la carta `propio` atacando a la carta `rival`. */
+export function opcionesContra(
+  propioActivo: CartaEnJuego,
+  rivalActivo: CartaEnJuego,
+  configuracion: Configuracion,
+  abilities: Habilidad[],
+  config: EngineConfig,
+  ocultarDano: boolean,
+): OpcionAtaque[] {
+  const atacanteStats = configuracion.reptiles[propioActivo.reptilId];
+  const defensorStats = configuracion.reptiles[rivalActivo.reptilId];
   if (!atacanteStats || !defensorStats) return [];
+  const propio = { activo: propioActivo };
+  const rival = { activo: rivalActivo };
 
   const atacante: Reptil = reptilDesdeStats(atacanteStats, { atk: Math.round(atacanteStats.atk * multiplicadorEstado(propio.activo, "atk")) });
   const defensor: Reptil = reptilDesdeStats(defensorStats, {
@@ -40,7 +54,7 @@ export function opcionesDeAtaque(state: GameState, abilities: Habilidad[], confi
   });
   const tier = getAffinityTier(atacanteStats.afinidad, defensorStats.afinidad);
 
-  const opciones = habilidadesDisponibles(state, abilities).map((h) => ({
+  const opciones = abilities.filter((a) => a.propietarioId === propioActivo.reptilId).map((h) => ({
     habilidad: h,
     tier,
     disponible: puedeUsarHabilidad(propio.activo!, h),

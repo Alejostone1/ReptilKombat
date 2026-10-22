@@ -56,3 +56,16 @@ describe("código desde QR", () => {
     expect(normalizarCodigo("ab1234")).toBeNull(); // '1' no existe
   });
 });
+
+describe("desconexión en 2 vs 2", () => {
+  const j = (lado: "A" | "B", asiento: number, s: number) => ({ lado, asiento, lastSeen: hace(s) });
+  it("el equipo de quien se calla pierde; si callan de ambos equipos no se decide", async () => {
+    const { evaluarDesconexionEquipos } = await import("./conexion");
+    const yo = { lado: "A" as const, asiento: 1 };
+    expect(evaluarDesconexionEquipos([j("A", 1, 1), j("B", 1, 5), j("A", 2, 5), j("B", 2, 5)], yo, AHORA).equipoAbandona).toBeNull();
+    expect(evaluarDesconexionEquipos([j("A", 1, 1), j("B", 1, 90), j("A", 2, 5), j("B", 2, 5)], yo, AHORA).equipoAbandona).toBe("B");
+    expect(evaluarDesconexionEquipos([j("A", 1, 1), j("B", 1, 5), j("A", 2, 90), j("B", 2, 5)], yo, AHORA).equipoAbandona).toBe("A"); // mi compañero
+    expect(evaluarDesconexionEquipos([j("A", 1, 1), j("B", 1, 90), j("A", 2, 90), j("B", 2, 5)], yo, AHORA).equipoAbandona).toBeNull();
+    expect(evaluarDesconexionEquipos([j("A", 1, 500), j("B", 1, 5), j("A", 2, 5), j("B", 2, 5)], yo, AHORA).equipoAbandona).toBeNull(); // yo no cuento
+  });
+});

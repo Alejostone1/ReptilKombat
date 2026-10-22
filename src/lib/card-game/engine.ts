@@ -24,7 +24,7 @@ function conJugador(state: GameState, lado: Lado, jugadorNuevo: JugadorState): G
   return lado === "A" ? { ...state, jugadorA: jugadorNuevo } : { ...state, jugadorB: jugadorNuevo };
 }
 
-function construirConfiguracion(mazoA: string[], mazoB: string[], roster: Reptil[], abilities: Habilidad[], config: EngineConfig): Configuracion {
+export function construirConfiguracion(mazoA: string[], mazoB: string[], roster: Reptil[], abilities: Habilidad[], config: EngineConfig): Configuracion {
   const ids = new Set([...mazoA, ...mazoB]);
   const reptiles: Configuracion["reptiles"] = {};
   const habilidades: Configuracion["habilidades"] = {};
@@ -113,7 +113,7 @@ export function puedeUsarHabilidad(carta: CartaEnJuego, habilidad: Habilidad): b
   return !enCooldown && !sinEnergia;
 }
 
-function nuevaCartaEnJuego(reptilId: string, hpActual: number, energiaMax: number): CartaEnJuego {
+export function nuevaCartaEnJuego(reptilId: string, hpActual: number, energiaMax: number): CartaEnJuego {
   return { reptilId, hpActual, energiaActual: energiaMax, cooldowns: {}, estados: [], aturdidoTurnos: 0 };
 }
 
@@ -152,7 +152,7 @@ export function invocar(state: GameState, reptilId: string, roster: Reptil[]): G
 }
 
 /** Carta que se retira a la banca: conserva HP, energía y cooldowns, pero pierde estados (veneno, buffs, aturdimiento), como en los juegos de cartas/monstruos. */
-function retirarABanca(carta: CartaEnJuego): CartaEnJuego {
+export function retirarABanca(carta: CartaEnJuego): CartaEnJuego {
   return { ...carta, estados: [], aturdidoTurnos: 0 };
 }
 
@@ -399,7 +399,7 @@ export function configuracionARosterYHabilidades(configuracion: Configuracion): 
   };
 }
 
-function round2(n: number): number {
+export function round2(n: number): number {
   return Math.round(n * 100) / 100;
 }
 
@@ -475,7 +475,7 @@ export function multiplicadorEstado(carta: CartaEnJuego, stat: "atk" | "def" | "
 }
 
 /** Tickea estados activos de una carta al empezar su turno: aplica veneno, decrementa duraciones/cooldowns, expira lo vencido. */
-function tickearEstados(carta: CartaEnJuego, hpMax: number): { carta: CartaEnJuego; danoVeneno: number } {
+export function tickearEstados(carta: CartaEnJuego, hpMax: number): { carta: CartaEnJuego; danoVeneno: number } {
   let hpActual = carta.hpActual;
   let danoVeneno = 0;
   const estados = carta.estados

@@ -3,11 +3,14 @@ import { generarCodigoSala, generarViewToken } from "@/lib/supabase/game-queries
 import { MAX_CARTAS_MAZO } from "@/lib/card-game/types";
 import { MINUTOS_VIGENCIA_SALA } from "@/lib/card-game/conexion";
 import { cargarDatosDeJuego, jsonError } from "../_lib";
+import { crearSala2v2 } from "../_equipos";
 
 interface CrearSalaBody {
   sessionId: string;
   nombre: string;
   mazo: string[];
+  /** "2v2" crea una sala de 4 jugadores; omitido = 1 vs 1 de siempre. */
+  formato?: "1v1" | "2v2";
 }
 
 export async function POST(request: Request) {
@@ -15,6 +18,7 @@ export async function POST(request: Request) {
   if (!body?.sessionId || !body.nombre || !Array.isArray(body.mazo)) {
     return jsonError("Datos inválidos.");
   }
+  if (body.formato === "2v2") return crearSala2v2(body);
   if (body.mazo.length === 0 || body.mazo.length > MAX_CARTAS_MAZO) {
     return jsonError(`El mazo debe tener entre 1 y ${MAX_CARTAS_MAZO} reptiles.`);
   }

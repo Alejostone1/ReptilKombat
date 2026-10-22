@@ -18,6 +18,7 @@ import { AttackAnimation } from "@/components/cards/AttackAnimation";
 import { Countdown } from "@/components/cards/Countdown";
 import { ConnectionBanner } from "@/components/cards/ConnectionBanner";
 import { QRCodeSVG } from "qrcode.react";
+import { Sala2v2 } from "@/components/cards/Sala2v2";
 import { urlDeSala } from "@/lib/utils/sala-qr";
 import { RivalDesconectadoBanner } from "@/components/cards/RivalDesconectadoBanner";
 import { SwapSheet, ManoInvocar, candidatosDeCambio } from "@/components/cards/SwapSheet";
@@ -27,7 +28,37 @@ import { Button } from "@/components/ui/Button";
 import { Card } from "@/components/ui/Card";
 import { cn } from "@/lib/utils";
 
+/**
+ * La misma URL (/jugar/sala/CODIGO) sirve a salas 1 vs 1 y 2 vs 2: se consulta el formato (endpoint público)
+ * y se monta la pantalla que corresponde. Cualquier fallo de red cae al 1 vs 1 de siempre.
+ */
 export default function SalaOnlinePage() {
+  const params = useParams<{ codigo: string }>();
+  const codigo = params.codigo.toUpperCase();
+  const [formato, setFormato] = useState<"1v1" | "2v2" | null>(FEATURES.MODE_2V2 ? null : "1v1");
+  const [token, setToken] = useState<string | null | undefined>(undefined);
+
+  useEffect(() => {
+    // localStorage no existe en el render de servidor: el token solo puede leerse tras montar.
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    setToken(leerViewToken(codigo));
+    if (!FEATURES.MODE_2V2) return;
+    let cancelado = false;
+    fetch(`/api/game/rooms/${codigo}/info`)
+      .then((r) => r.json())
+      .then((info) => !cancelado && setFormato(info?.formato === "2v2" ? "2v2" : "1v1"))
+      .catch(() => !cancelado && setFormato("1v1"));
+    return () => {
+      cancelado = true;
+    };
+  }, [codigo]);
+
+  if (formato === null || token === undefined) return null;
+  if (formato === "2v2" && token) return <Sala2v2 codigo={codigo} viewToken={token} />;
+  return <Sala1v1Online />;
+}
+
+function Sala1v1Online() {
   const params = useParams<{ codigo: string }>();
   const codigo = params.codigo.toUpperCase();
   const router = useRouter();

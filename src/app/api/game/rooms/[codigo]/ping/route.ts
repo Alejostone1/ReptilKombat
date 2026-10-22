@@ -1,6 +1,7 @@
 import { createAdminClient } from "@/lib/supabase/admin";
 import { obtenerSala, obtenerJugadoresDeSala, encontrarAsiento, emitirEstado, jsonError } from "../../../_lib";
 import { evaluarDesconexion } from "@/lib/card-game/conexion";
+import { pingEquipos } from "../../../_equipos";
 
 interface Params {
   params: Promise<{ codigo: string }>;
@@ -21,6 +22,8 @@ export async function POST(request: Request, { params }: Params) {
   const jugadores = await obtenerJugadoresDeSala(sala.id);
   const yo = encontrarAsiento(jugadores, body.sessionId);
   if (!yo) return jsonError("No perteneces a esta sala.", 403);
+
+  if (sala.formato === "2v2") return pingEquipos(sala, jugadores, yo);
 
   const supabase = createAdminClient();
   const ahora = Date.now();

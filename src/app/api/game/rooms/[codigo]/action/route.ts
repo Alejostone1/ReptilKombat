@@ -1,6 +1,7 @@
 import { createAdminClient } from "@/lib/supabase/admin";
 import { invocar, atacar, cambiar, toPublicView } from "@/lib/card-game/engine";
 import { FEATURES } from "@/config/features";
+import { accionEquipos, type AccionEquipos } from "../../../_equipos";
 import type { ResultadoAtaque } from "@/lib/card-game/engine";
 import type { GameState } from "@/lib/card-game/types";
 import {
@@ -36,7 +37,9 @@ export async function POST(request: Request, { params }: Params) {
   const yo = encontrarAsiento(jugadores, body.sessionId);
   if (!yo) return jsonError("No perteneces a esta sala.", 403);
 
-  const estadoActual = sala.estado;
+  if (sala.formato === "2v2") return accionEquipos(sala, jugadores, yo, body.accion as unknown as AccionEquipos);
+
+  const estadoActual = sala.estado as GameState;
   // El servidor es la autoridad del turno: rechaza cualquier acción que no corresponda al lado del sessionId.
   if (estadoActual.turno !== yo.lado) return jsonError("No es tu turno.", 409);
 

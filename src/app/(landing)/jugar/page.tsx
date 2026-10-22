@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { Card } from "@/components/ui/Card";
+import { FEATURES } from "@/config/features";
 
 interface Modo {
   href: string;
@@ -19,6 +20,17 @@ const MODOS: Modo[] = [
     descripcion: "Genera un código de sala y compártelo. Tu rival lo ingresa desde otro dispositivo, en otra red.",
     accent: "hover:border-reptile-green/60",
   },
+  ...(FEATURES.MODE_2V2
+    ? [
+        {
+          href: "/jugar/crear-2v2",
+          emoji: "👥",
+          titulo: "2 vs 2",
+          descripcion: "Cuatro jugadores, dos equipos. Crea la sala y comparte el QR: empieza sola al entrar el cuarto.",
+          accent: "hover:border-affinity-venenoso/60",
+        } satisfies Modo,
+      ]
+    : []),
   {
     href: "/jugar/unirse",
     emoji: "🔑",

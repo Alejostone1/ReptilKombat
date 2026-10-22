@@ -57,6 +57,8 @@ export interface PlayerRecord {
   sessionId: string;
   viewToken: string;
   lastSeen: string;
+  asiento: number;
+  mazo: string[] | null;
 }
 
 export function rowToPlayer(row: GamePlayerRow): PlayerRecord {
@@ -68,6 +70,8 @@ export function rowToPlayer(row: GamePlayerRow): PlayerRecord {
     sessionId: row.session_id,
     viewToken: row.view_token,
     lastSeen: row.last_seen ?? row.conectado_en,
+    asiento: row.asiento ?? 1,
+    mazo: row.mazo ?? null,
   };
 }
 

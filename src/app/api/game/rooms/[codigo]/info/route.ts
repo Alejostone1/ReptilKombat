@@ -1,4 +1,4 @@
-import { obtenerSala } from "../../../_lib";
+import { obtenerSala, obtenerJugadoresDeSala } from "../../../_lib";
 import { normalizarCodigo } from "@/lib/utils/sala-qr";
 import { salaVencida } from "@/lib/card-game/conexion";
 
@@ -19,12 +19,20 @@ export async function GET(_request: Request, { params }: Params) {
   const sala = await obtenerSala(codigo);
   if (!sala) return Response.json({ existe: false });
 
+  let asientos: { A: number; B: number } | undefined;
+  if (sala.formato === "2v2") {
+    const jugadores = await obtenerJugadoresDeSala(sala.id);
+    asientos = { A: jugadores.filter((j) => j.lado === "A").length, B: jugadores.filter((j) => j.lado === "B").length };
+  }
+
   const vencida = sala.estadoSala === "WAITING" && salaVencida(sala.expiraEn, Date.now());
   return Response.json({
     existe: true,
     estadoSala: sala.estadoSala,
     formato: sala.formato,
     vencida,
+    /** Solo 2 vs 2: cuántos jugadores hay por equipo (máx. 2). */
+    asientos,
     /** true = ya no acepta jugadores (en curso, terminada, cancelada) o venció. */
     llena: sala.estadoSala !== "WAITING" || vencida,
   });

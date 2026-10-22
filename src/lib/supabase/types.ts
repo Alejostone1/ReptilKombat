@@ -148,6 +148,10 @@ export interface GamePlayerRow {
   conectado_en: string;
   /** Último latido del jugador (ping/acción): base del abandono a los 60 s. */
   last_seen: string;
+  /** 2 vs 2: puesto dentro del equipo (1 | 2). En 1 vs 1 siempre 1. */
+  asiento: number;
+  /** 2 vs 2: mazo elegido mientras la sala espera. En 1 vs 1 es null (vive en game_rooms). */
+  mazo: string[] | null;
 }
 
 export interface GameMoveRow {

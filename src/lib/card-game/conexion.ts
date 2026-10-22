@@ -46,3 +46,42 @@ export function salaVencida(expiraEn: string | null, ahora: number): boolean {
 export function segundosRestantesRival(segundosSinSenal: number, plazoMs = PLAZO_DESCONEXION_MS): number {
   return Math.max(0, Math.ceil(plazoMs / 1000 - segundosSinSenal));
 }
+
+export interface SenalJugadorEquipos {
+  lado: Lado;
+  asiento: number;
+  lastSeen: string;
+}
+
+export interface EvaluacionDesconexionEquipos {
+  /** Equipo que pierde por abandono (alguien de ese equipo lleva >plazo sin señal), o null. */
+  equipoAbandona: Lado | null;
+  /** Mayor silencio, en segundos, entre los OTROS tres jugadores (para el aviso en pantalla). */
+  maxSegundosSinSenal: number;
+}
+
+/**
+ * 2 vs 2: si alguien se queda sin señal más del plazo, su equipo pierde por abandono (su turno bloquearía la
+ * partida). Si hay silenciosos en AMBOS equipos no se decide nada (no se sabe quién sigue conectado).
+ */
+export function evaluarDesconexionEquipos(
+  jugadores: SenalJugadorEquipos[],
+  yo: { lado: Lado; asiento: number },
+  ahora: number,
+  plazoMs = PLAZO_DESCONEXION_MS,
+): EvaluacionDesconexionEquipos {
+  const equiposSilenciosos = new Set<Lado>();
+  let maxMs = 0;
+  for (const j of jugadores) {
+    if (j.lado === yo.lado && j.asiento === yo.asiento) continue;
+    const t = Date.parse(j.lastSeen);
+    if (Number.isNaN(t)) continue;
+    const ms = Math.max(0, ahora - t);
+    maxMs = Math.max(maxMs, ms);
+    if (ms > plazoMs) equiposSilenciosos.add(j.lado);
+  }
+  return {
+    equipoAbandona: equiposSilenciosos.size === 1 ? [...equiposSilenciosos][0] : null,
+    maxSegundosSinSenal: Math.floor(maxMs / 1000),
+  };
+}

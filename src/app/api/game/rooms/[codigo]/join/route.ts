@@ -3,6 +3,7 @@ import { generarViewToken } from "@/lib/supabase/game-queries";
 import { crearPartida } from "@/lib/card-game/engine";
 import { MAX_CARTAS_MAZO } from "@/lib/card-game/types";
 import { salaVencida } from "@/lib/card-game/conexion";
+import { unirseSala2v2 } from "../../../_equipos";
 import { cargarDatosDeJuego, obtenerSala, obtenerJugadoresDeSala, emitirEstado, jsonError } from "../../../_lib";
 
 interface Params {
@@ -13,18 +14,22 @@ interface UnirseBody {
   sessionId: string;
   nombre: string;
   mazo: string[];
+  /** Solo 2 vs 2: equipo elegido ("A" | "B"). */
+  equipo?: string;
 }
 
 export async function POST(request: Request, { params }: Params) {
   const { codigo } = await params;
   const body = (await request.json().catch(() => null)) as UnirseBody | null;
   if (!body?.sessionId || !body.nombre || !Array.isArray(body.mazo)) return jsonError("Datos inválidos.");
+  const sala = await obtenerSala(codigo);
+  if (!sala) return jsonError("No existe una partida con ese código.", 404);
+  if (sala.formato === "2v2") return unirseSala2v2(sala, await obtenerJugadoresDeSala(sala.id), body);
+
   if (body.mazo.length === 0 || body.mazo.length > MAX_CARTAS_MAZO) {
     return jsonError(`El mazo debe tener entre 1 y ${MAX_CARTAS_MAZO} reptiles.`);
   }
 
-  const sala = await obtenerSala(codigo);
-  if (!sala) return jsonError("No existe una partida con ese código.", 404);
   if (sala.estadoSala === "CANCELLED") return jsonError("Esa partida fue cancelada.", 409);
   if (sala.estadoSala !== "WAITING") return jsonError("Esa partida ya no acepta jugadores.", 409);
   if (salaVencida(sala.expiraEn, Date.now())) return jsonError("Esa sala venció. Pídele a tu rival que cree una nueva.", 410);
@@ -62,7 +67,7 @@ export async function POST(request: Request, { params }: Params) {
   // Al empezar, los dos cuentan como "vistos ahora": el creador pudo esperar minutos sin partida en curso.
   await supabase.from("game_players").update({ last_seen: new Date().toISOString() }).eq("room_id", sala.id);
 
-  const jugadores = [...jugadoresActuales, { id: "", roomId: sala.id, nombre: body.nombre, lado: "B" as const, sessionId: body.sessionId, viewToken, lastSeen: new Date().toISOString() }];
+  const jugadores = [...jugadoresActuales, { id: "", roomId: sala.id, nombre: body.nombre, lado: "B" as const, sessionId: body.sessionId, viewToken, lastSeen: new Date().toISOString(), asiento: 1, mazo: null }];
   await emitirEstado(estadoInicial, jugadores, { estadoSala: "IN_PROGRESS" });
 
   return Response.json({ viewToken });

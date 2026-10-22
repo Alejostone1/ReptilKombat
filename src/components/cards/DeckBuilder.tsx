@@ -17,9 +17,11 @@ interface DeckBuilderProps {
   bloqueados: string[];
   onToggle: (reptilId: string) => void;
   accentClass?: string;
+  /** Cartas máximas del mazo (1 vs 1 = 4; 2 vs 2 = 2). */
+  maxCartas?: number;
 }
 
-export function DeckBuilder({ titulo, roster, seleccionados, bloqueados, onToggle, accentClass = "text-reptile-green" }: DeckBuilderProps) {
+export function DeckBuilder({ titulo, roster, seleccionados, bloqueados, onToggle, accentClass = "text-reptile-green", maxCartas = MAX_CARTAS_MAZO }: DeckBuilderProps) {
   const [query, setQuery] = useState("");
   const [afinidad, setAfinidad] = useState("");
   const [rol, setRol] = useState("");
@@ -39,7 +41,7 @@ export function DeckBuilder({ titulo, roster, seleccionados, bloqueados, onToggl
       <div className="flex items-center justify-between">
         <h3 className={cn("text-sm font-bold uppercase tracking-wide", accentClass)}>{titulo}</h3>
         <span className="text-xs text-foreground-muted">
-          {seleccionados.length}/{MAX_CARTAS_MAZO} cartas
+          {seleccionados.length}/{maxCartas} cartas
         </span>
       </div>
 
@@ -72,7 +74,7 @@ export function DeckBuilder({ titulo, roster, seleccionados, bloqueados, onToggl
         {filtrados.map((r) => {
           const seleccionada = seleccionados.includes(r.id);
           const bloqueadaPorRival = bloqueados.includes(r.id) && !seleccionada;
-          const limiteAlcanzado = seleccionados.length >= MAX_CARTAS_MAZO && !seleccionada;
+          const limiteAlcanzado = seleccionados.length >= maxCartas && !seleccionada;
           return (
             <CardPickerTile
               key={r.id}
