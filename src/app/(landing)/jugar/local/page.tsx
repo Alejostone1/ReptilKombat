@@ -26,8 +26,8 @@ export default function JugarLocalPage() {
       <div>
         <h1 className="text-2xl font-bold text-foreground">🎮 Este dispositivo</h1>
         <p className="text-sm text-foreground-muted">
-          Arma tu mazo de hasta {MAX_CARTAS_MAZO} reptiles y juega una partida por turnos, cara a cara en el mismo dispositivo. El
-          daño se calcula con el mismo motor que el simulador — sin sorpresas, todo verificable.
+          Arma tu mazo de hasta {MAX_CARTAS_MAZO} reptiles y juega una partida por turnos, cara a cara en el mismo dispositivo.
+          ¡Pásalo después de cada jugada y demuestra quién manda!
         </p>
       </div>
 

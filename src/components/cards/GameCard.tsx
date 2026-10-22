@@ -6,6 +6,8 @@ import { ReptileImage } from "@/components/reptiles/ReptileImage";
 import { AFFINITY_META } from "@/types/affinity";
 import { STAT_ORDER, STAT_LABELS } from "@/lib/game-engine/stat-labels";
 import type { EstadoActivo } from "@/lib/card-game/types";
+import { ImpactoFX } from "./ImpactoFX";
+import { poseDeCombate, type FxCarta } from "./pose-combate";
 import { cn } from "@/lib/utils";
 
 interface GameCardProps {
@@ -22,15 +24,14 @@ interface GameCardProps {
   deshabilitada?: boolean;
   onClick?: () => void;
   animarEntrada?: boolean;
-  sacudir?: boolean;
   /** Estados activos (veneno, buffs, debuffs) como fichas pequeñas bajo el nombre. */
   estados?: EstadoActivo[];
   /** Turnos que le quedan aturdida (se muestra ficha 💫). */
   aturdidoTurnos?: number;
   /** Resplandor de "es el turno de esta carta" (estilo duelo de cartas). */
   turnoActivo?: boolean;
-  /** Dirección de la embestida de ataque: 1 = hacia la derecha, -1 = hacia la izquierda, null = quieta. */
-  embestida?: 1 | -1 | null;
+  /** Animación de combate de esta carta (postura, efectos de carga e impacto). null = en reposo. */
+  fx?: FxCarta | null;
   /** Texto que flota sobre la carta al recibir un golpe (el `id` re-dispara la animación). */
   impacto?: { id: number; texto: string; tono: TonoImpacto } | null;
 }
@@ -83,11 +84,10 @@ export function GameCard({
   deshabilitada,
   onClick,
   animarEntrada,
-  sacudir,
   estados,
   aturdidoTurnos,
   turnoActivo,
-  embestida,
+  fx,
   impacto,
 }: GameCardProps) {
   const reducirMovimiento = useReducedMotion();
@@ -98,23 +98,19 @@ export function GameCard({
   const critico = pctHp > 0 && pctHp <= UMBRAL_HP_CRITICO;
   const pctEnergia = energiaMax && energiaMax > 0 ? Math.max(0, Math.min(100, ((energiaActual ?? energiaMax) / energiaMax) * 100)) : null;
 
+  const pose = poseDeCombate(fx ?? null, !!reducirMovimiento);
+  const esAtacante = fx?.rol === "atacante" || fx?.rol === "ambos";
+  const esObjetivo = fx?.rol === "objetivo" || fx?.rol === "ambos";
+
   return (
-    <motion.div
-      className={cn("relative", SIZE_CLASSES[size])}
-      animate={embestida && !reducirMovimiento ? { x: [0, embestida * 26, 0], scale: [1, 1.07, 1] } : { x: 0, scale: 1 }}
-      transition={{ duration: 0.38, ease: "easeOut" }}
-    >
+    <motion.div className={cn("relative", SIZE_CLASSES[size])} animate={pose.animate} transition={pose.transition} style={{ zIndex: fx?.etapa && esAtacante ? 5 : undefined }}>
     <motion.button
       type="button"
       onClick={onClick}
       disabled={!onClick || deshabilitada}
       initial={animarEntrada ? { opacity: 0, scale: 0.4, rotateY: 180 } : false}
-      animate={
-        sacudir
-          ? { x: reducirMovimiento ? 0 : [0, -8, 8, -6, 6, 0], filter: ["brightness(1)", "brightness(2)", "brightness(1)"] }
-          : { opacity: 1, scale: 1, rotateY: 0 }
-      }
-      transition={sacudir ? { duration: 0.4 } : { type: "spring", stiffness: 260, damping: 20 }}
+      animate={{ opacity: 1, scale: 1, rotateY: 0 }}
+      transition={{ type: "spring", stiffness: 260, damping: 20 }}
       whileHover={seleccionable && !deshabilitada ? { y: -4 } : undefined}
       className={cn(
         "relative flex w-full flex-col overflow-hidden rounded-xl border-2 bg-panel text-left shadow-lg transition-shadow",
@@ -131,7 +127,7 @@ export function GameCard({
         transition={{ duration: 0.6 }}
       >
         <div className="relative aspect-square w-full">
-          <ReptileImage nombre={reptil.nombre} nombreCientifico={reptil.nombreCientifico} className="h-full w-full" />
+          <ReptileImage nombre={reptil.nombre} nombreCientifico={reptil.nombreCientifico} className="h-full w-full" sinCredito />
           <span
             className="absolute left-1 top-1 rounded-full px-1.5 py-0.5 text-[10px] font-bold"
             style={{ backgroundColor: `${color}CC`, color: "#04120b" }}
@@ -180,7 +176,7 @@ export function GameCard({
               transition={{ duration: 0.8, repeat: Infinity }}
               className="text-center text-[9px] font-black uppercase tracking-wide text-state-danger"
             >
-              ⚠️ Critical HP
+              ⚠️ ¡Vida crítica!
             </motion.p>
           )}
 
@@ -230,6 +226,13 @@ export function GameCard({
         </motion.div>
       )}
     </motion.button>
+
+      {fx && fx.etapa && esAtacante && (fx.etapa === "preparacion" || fx.etapa === "anticipacion") && (
+        <ImpactoFX key={`carga-${fx.id}`} estilo={fx.estilo} modo="carga" id={fx.id} />
+      )}
+      {fx && fx.etapa && esObjetivo && !fx.esquivado && (fx.etapa === "impacto" || fx.etapa === "reaccion") && (
+        <ImpactoFX key={`impacto-${fx.id}`} estilo={fx.estilo} modo="impacto" id={fx.id} />
+      )}
 
       <AnimatePresence>
         {impacto && (

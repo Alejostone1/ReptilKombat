@@ -4,6 +4,7 @@ import { ABILITIES } from "@/data/abilities";
 import { buildReptil } from "@/lib/game-engine/stats";
 import { DEFAULT_ENGINE_CONFIG } from "@/lib/game-engine/config";
 import { secuenciaRng } from "@/lib/utils/rng";
+import { FORCEJEO_ID, habilidadesDeCarta, puedeUsarHabilidad } from "./engine";
 import {
   crearPartidaEquipos,
   invocarEquipos,
@@ -44,9 +45,13 @@ function enCombate(mazos = MAZOS): EstadoEquipos {
   for (let i = 0; i < 4; i++) s = invocarEquipos(s, s.jugadores[s.turnoIdx].mazo[0], ROSTER);
   return s;
 }
+// Ataque de mayor potencia que pueda usar y, si ninguno puede, el Forcejeo de último recurso.
 const golpear = (s: EstadoEquipos, objetivo: number) => {
-  const idCarta = s.jugadores[s.turnoIdx].activo!.reptilId;
-  return atacarEquipos(s, fisica(idCarta).id, objetivo, DEFAULT_ENGINE_CONFIG, { rng: SIN_CRITICO() });
+  const carta = s.jugadores[s.turnoIdx].activo!;
+  const mejor = habilidadesDeCarta(s.configuracion, carta)
+    .filter((h) => puedeUsarHabilidad(carta, h))
+    .sort((a, b) => b.potencia - a.potencia)[0];
+  return atacarEquipos(s, mejor?.id ?? FORCEJEO_ID, objetivo, DEFAULT_ENGINE_CONFIG, { rng: SIN_CRITICO() });
 };
 
 describe("2 vs 2: asientos y equipos", () => {

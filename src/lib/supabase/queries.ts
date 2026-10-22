@@ -9,7 +9,7 @@ import { DEFAULT_ENGINE_CONFIG } from "@/lib/game-engine/config";
 
 type Client = SupabaseClient<Database>;
 
-function rowToReptilBase(row: ReptileRow): ReptilBase {
+export function rowToReptilBase(row: ReptileRow): ReptilBase {
   return {
     id: row.id,
     numero: row.numero,
@@ -100,7 +100,7 @@ export function reptilePatchToRow(patch: Record<string, unknown>): Record<string
   return row;
 }
 
-function rowToHabilidad(row: AbilityRow): Habilidad {
+export function rowToHabilidad(row: AbilityRow): Habilidad {
   return {
     id: row.id,
     nombre: row.nombre,

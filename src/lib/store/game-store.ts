@@ -8,6 +8,7 @@ import type { GameState, Lado } from "@/lib/card-game/types";
 import { MAX_CARTAS_MAZO } from "@/lib/card-game/types";
 import { crearPartida, invocar as invocarEngine, atacar as atacarEngine, cambiar as cambiarEngine, type ResultadoAtaque } from "@/lib/card-game/engine";
 import type { PersonalidadIA } from "@/lib/card-game/ai";
+import { estiloParaAtaque, nuevoIdAtaque, type EstiloAtaque } from "@/lib/card-game/estilo-ataque";
 
 interface GameStoreState {
   mazoA: string[];
@@ -23,8 +24,11 @@ interface GameStoreState {
    * en su estado "derrotada" antes de desaparecer del tablero.
    */
   ultimoDerrotado: { lado: Lado; reptilId: string } | null;
-  /** Quién atacó en el último ataque (tras atacar el turno ya pasó al rival) + contador para re-disparar animaciones. */
-  ultimoAtaque: { id: number; atacante: Lado } | null;
+  /**
+   * Último ataque, para animarlo: quién atacó (tras atacar el turno ya pasó al rival), con qué estilo, y el estado
+   * de ANTES (se muestra hasta el impacto para que la vida nueva no se adelante a la animación).
+   */
+  ultimoAtaque: { id: number; atacante: Lado; estilo: EstiloAtaque; antes: GameState } | null;
   /** true justo después de una acción: se muestra la pantalla "pasa el dispositivo" antes de revelar el tablero al siguiente jugador. */
   pantallaTransicion: boolean;
   /** Cuando está activo, `ladoIA` juega solo (ver useIaAutoplay) — no se muestra "pasa el dispositivo" en su turno. */
@@ -52,6 +56,8 @@ interface GameStoreState {
   /** Cambia la carta activa por otra del mazo o la banca (gasta el turno). */
   cambiar: (reptilId: string, roster: Reptil[]) => void;
   limpiarUltimoDerrotado: () => void;
+  /** Termina la animación del último ataque: limpia el resultado, la carta caída y el ataque en curso. */
+  limpiarUltimoResultado: () => void;
   reiniciar: () => void;
 }
 
@@ -146,7 +152,17 @@ export const useGameStore = create<GameStoreState>()((set, get) => ({
     set({
       state: resultado.state,
       ultimoResultado: resultado,
-      ultimoAtaque: { id: (s.ultimoAtaque?.id ?? 0) + 1, atacante: s.state.turno },
+      ultimoAtaque: {
+        id: nuevoIdAtaque(),
+        atacante: s.state.turno,
+        estilo: estiloParaAtaque(
+          s.state.configuracion,
+          jugadorDe(s.state, s.state.turno).activo?.reptilId ?? "",
+          s.state.configuracion.habilidades[habilidadId]?.categoria ?? "Fisica",
+          resultado.critico,
+        ),
+        antes: s.state,
+      },
       ultimoDerrotado: resultado.derrotado && reptilIdDefensor ? { lado: ladoDefensor, reptilId: reptilIdDefensor } : null,
       pantallaTransicion: !s.modoIA,
     });
@@ -160,6 +176,8 @@ export const useGameStore = create<GameStoreState>()((set, get) => ({
   },
 
   limpiarUltimoDerrotado: () => set({ ultimoDerrotado: null }),
+
+  limpiarUltimoResultado: () => set({ ultimoResultado: null, ultimoDerrotado: null, ultimoAtaque: null }),
 
   reiniciar: () =>
     set({

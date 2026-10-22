@@ -5,7 +5,16 @@ import type { EngineConfig } from "@/lib/game-engine/config";
 import { calculateDamage } from "@/lib/game-engine/damage";
 import { getAffinityTier } from "@/lib/game-engine/affinities";
 import type { CartaEnJuego, Configuracion, GameState } from "./types";
-import { puedeUsarHabilidad, reptilDesdeStats, multiplicadorEstado } from "./engine";
+import {
+  FORCEJEO_ID,
+  crearForcejeo,
+  habilidadesDeCarta,
+  multiplicadorEstado,
+  puedeUsarHabilidad,
+  reptilDesdeStats,
+  sinAtaquesUtilizables,
+  usosRestantes,
+} from "./engine";
 
 export interface OpcionAtaque {
   habilidad: Habilidad;
@@ -14,6 +23,8 @@ export interface OpcionAtaque {
   cooldownRestante: number;
   /** Daño esperado (sin variación ni crítico). SOLO para mostrar si HIDE_ATTACK_DAMAGE está apagada. */
   danoEstimado: number;
+  /** Usos que le quedan (de USOS_MAXIMOS_HABILIDAD). null = ataque de último recurso (Forcejeo), sin contador. */
+  usosRestantes: number | null;
 }
 
 const ORDEN_CATEGORIA: Record<CategoriaHabilidad, number> = { Fisica: 0, Tecnica: 1, Control: 2, Estado: 3 };
@@ -24,12 +35,12 @@ const ORDEN_CATEGORIA: Record<CategoriaHabilidad, number> = { Fisica: 0, Tecnica
  * Con el daño oculto el orden es fijo por categoría (si se ordenara por daño, la lista delataría
  * cuál pega más) y NO depende de disponibilidad, para que los botones no cambien de sitio.
  */
-export function opcionesDeAtaque(state: GameState, abilities: Habilidad[], config: EngineConfig, ocultarDano: boolean): OpcionAtaque[] {
+export function opcionesDeAtaque(state: GameState, config: EngineConfig, ocultarDano: boolean): OpcionAtaque[] {
   const lado = state.turno;
   const propio = lado === "A" ? state.jugadorA : state.jugadorB;
   const rival = lado === "A" ? state.jugadorB : state.jugadorA;
   if (!propio.activo || !rival.activo) return [];
-  return opcionesContra(propio.activo, rival.activo, state.configuracion, abilities, config, ocultarDano);
+  return opcionesContra(propio.activo, rival.activo, state.configuracion, config, ocultarDano);
 }
 
 /** Núcleo compartido (1 vs 1 y 2 vs 2): opciones de la carta `propio` atacando a la carta `rival`. */
@@ -37,7 +48,6 @@ export function opcionesContra(
   propioActivo: CartaEnJuego,
   rivalActivo: CartaEnJuego,
   configuracion: Configuracion,
-  abilities: Habilidad[],
   config: EngineConfig,
   ocultarDano: boolean,
 ): OpcionAtaque[] {
@@ -54,11 +64,17 @@ export function opcionesContra(
   });
   const tier = getAffinityTier(atacanteStats.afinidad, defensorStats.afinidad);
 
-  const opciones = abilities.filter((a) => a.propietarioId === propioActivo.reptilId).map((h) => ({
+  // Siempre desde el snapshot congelado de la partida (lo que el motor aplica de verdad).
+  const habilidades = habilidadesDeCarta(configuracion, propioActivo);
+  // Sin ataques utilizables (usos agotados, energía o recarga) queda el Forcejeo, para que la partida nunca se atasque.
+  const lista: Habilidad[] = sinAtaquesUtilizables(configuracion, propioActivo) ? [...habilidades, crearForcejeo(atacanteStats)] : habilidades;
+  const opciones = lista.map((h) => ({
     habilidad: h,
-    tier,
+    // Con el daño oculto no se calcula ni se transporta ninguna pista de ventaja/desventaja.
+    tier: ocultarDano ? ("neutral" as const) : tier,
     disponible: puedeUsarHabilidad(propio.activo!, h),
     cooldownRestante: propio.activo!.cooldowns[h.id] ?? 0,
+    usosRestantes: h.id === FORCEJEO_ID ? null : usosRestantes(propio.activo!, h),
     danoEstimado: ocultarDano ? 0 : calculateDamage(atacante, defensor, h, config).danoEsperado,
   }));
 

@@ -3,9 +3,10 @@ import type { Habilidad } from "@/types/ability";
 import type { EngineConfig } from "@/lib/game-engine/config";
 import { calculateDamage, aplicarVarianza } from "@/lib/game-engine/damage";
 import { getAffinityTier } from "@/lib/game-engine/affinities";
+import { probabilidadEsquiva } from "@/lib/game-engine/esquiva";
 import type { MatchupTier } from "@/types/affinity";
-import type { GameState, JugadorState, CartaEnJuego, Lado, EventoLog, Configuracion, TipoEstado } from "./types";
-import { MAX_CARTAS_MAZO } from "./types";
+import type { GameState, JugadorState, CartaEnJuego, Lado, EventoLog, Configuracion, TipoEstado, CombatStats } from "./types";
+import { MAX_CARTAS_MAZO, USOS_MAXIMOS_HABILIDAD } from "./types";
 
 function otroLado(lado: Lado): Lado {
   return lado === "A" ? "B" : "A";
@@ -38,6 +39,7 @@ export function construirConfiguracion(mazoA: string[], mazoB: string[], roster:
       hp: r.hp,
       atk: r.atk,
       def: r.def,
+      spd: r.spd,
       energiaMax: r.energiaMax,
       criticoProbabilidad: r.criticoProbabilidad,
     };
@@ -106,11 +108,102 @@ export function habilidadesDisponibles(state: GameState, abilities: Habilidad[])
   return abilities.filter((a) => a.propietarioId === j.activo!.reptilId);
 }
 
-/** Si una carta puede pagar/usar una habilidad ahora mismo: ni en cooldown ni sin energía suficiente. */
+/** Usos que le quedan a un ataque de esta carta (3 al empezar; nunca se restauran). */
+export function usosRestantes(carta: CartaEnJuego, habilidad: Habilidad): number {
+  return Math.max(0, USOS_MAXIMOS_HABILIDAD - (carta.usos?.[habilidad.id] ?? 0));
+}
+
+/** Si una carta puede usar una habilidad ahora mismo: con usos, sin cooldown y con energía suficiente. */
 export function puedeUsarHabilidad(carta: CartaEnJuego, habilidad: Habilidad): boolean {
   const enCooldown = (carta.cooldowns[habilidad.id] ?? 0) > 0;
   const sinEnergia = carta.energiaActual < habilidad.costoEnergia;
-  return !enCooldown && !sinEnergia;
+  return !enCooldown && !sinEnergia && usosRestantes(carta, habilidad) > 0;
+}
+
+/** Id del ataque de último recurso: solo existe cuando a la carta no le queda ningún ataque utilizable. */
+export const FORCEJEO_ID = "forcejeo";
+
+/** Ataque básico de último recurso (sin costo, sin usos, potencia baja): evita que una carta sin usos deje la partida atascada. */
+export function crearForcejeo(stats: Pick<CombatStats, "id" | "afinidad">): Habilidad {
+  return {
+    id: FORCEJEO_ID,
+    nombre: "Forcejeo",
+    propietarioId: stats.id,
+    afinidad: stats.afinidad,
+    potencia: 30,
+    precision: 100,
+    categoria: "Fisica",
+    efecto: "Daño directo",
+    costoEnergia: 0,
+    cooldownTurnos: 0,
+    tipoEfecto: null,
+    efectoMagnitud: null,
+    efectoTurnos: null,
+  };
+}
+
+/** Nombre para mostrar de un ataque (incluye el Forcejeo, que no está en el snapshot). */
+export function nombreDeHabilidad(configuracion: Configuracion, habilidadId: string): string | undefined {
+  return habilidadId === FORCEJEO_ID ? "Forcejeo" : configuracion.habilidades[habilidadId]?.nombre;
+}
+
+/** Habilidades reales (snapshot congelado) de la carta, sin el forcejeo. */
+export function habilidadesDeCarta(configuracion: Configuracion, carta: CartaEnJuego): Habilidad[] {
+  return Object.values(configuracion.habilidades).filter((h) => h.propietarioId === carta.reptilId);
+}
+
+/** ¿La carta se quedó sin ningún ataque utilizable (por usos agotados, energía o recarga)? Entonces puede forcejear. */
+export function sinAtaquesUtilizables(configuracion: Configuracion, carta: CartaEnJuego): boolean {
+  return !habilidadesDeCarta(configuracion, carta).some((h) => puedeUsarHabilidad(carta, h));
+}
+
+/**
+ * Resuelve el id de habilidad que pide el cliente: una del snapshot o el forcejeo (solo si no quedan
+ * ataques utilizables). Es la única puerta de entrada, así ningún cliente puede saltarse el límite de usos.
+ */
+export function resolverHabilidad(configuracion: Configuracion, carta: CartaEnJuego, stats: CombatStats, habilidadId: string): Habilidad {
+  if (habilidadId === FORCEJEO_ID) {
+    if (!sinAtaquesUtilizables(configuracion, carta)) throw new Error("Aún tienes ataques disponibles.");
+    return crearForcejeo(stats);
+  }
+  const habilidad = configuracion.habilidades[habilidadId];
+  if (!habilidad) throw new Error("Datos de combate incompletos.");
+  if (habilidad.propietarioId !== stats.id) throw new Error("Esa habilidad no pertenece al reptil activo.");
+  if (!puedeUsarHabilidad(carta, habilidad)) {
+    throw new Error(usosRestantes(carta, habilidad) <= 0 ? "Ese ataque ya no tiene usos." : "Esa habilidad no está disponible (cooldown o energía insuficiente).");
+  }
+  return habilidad;
+}
+
+/**
+ * ¿El defensor esquiva este ataque? Depende de su velocidad frente a la del atacante (con buffs de velocidad).
+ * Los ataques de Apoyo (a uno mismo) no se esquivan. Consume SIEMPRE una tirada del `rng` salvo en Apoyo,
+ * para que la secuencia de tiradas de un ataque no dependa del resultado.
+ */
+export function resolverEsquiva(
+  atacante: { stats: CombatStats; carta: CartaEnJuego },
+  defensor: { stats: CombatStats; carta: CartaEnJuego },
+  habilidad: Habilidad,
+  rng: () => number,
+): boolean {
+  if (habilidad.categoria === "Estado") return false;
+  const pct = probabilidadEsquiva(
+    (defensor.stats.spd ?? 0) * multiplicadorEstado(defensor.carta, "spd"),
+    (atacante.stats.spd ?? 0) * multiplicadorEstado(atacante.carta, "spd"),
+  );
+  const tirada = rng();
+  return pct > 0 && tirada * 100 < pct;
+}
+
+/** Carta tras gastar la energía, poner el cooldown y contar el uso de una habilidad (el forcejeo no cuenta usos). */
+export function cartaTrasUsar(carta: CartaEnJuego, habilidad: Habilidad): CartaEnJuego {
+  const esForcejeo = habilidad.id === FORCEJEO_ID;
+  return {
+    ...carta,
+    energiaActual: carta.energiaActual - habilidad.costoEnergia,
+    cooldowns: habilidad.cooldownTurnos > 0 ? { ...carta.cooldowns, [habilidad.id]: habilidad.cooldownTurnos } : carta.cooldowns,
+    usos: esForcejeo ? carta.usos : { ...(carta.usos ?? {}), [habilidad.id]: (carta.usos?.[habilidad.id] ?? 0) + 1 },
+  };
 }
 
 export function nuevaCartaEnJuego(reptilId: string, hpActual: number, energiaMax: number): CartaEnJuego {
@@ -203,6 +296,8 @@ export interface ResultadoAtaque {
   superEfectivo: boolean;
   /** Ventaja / neutral / desventaja de afinidad del atacante sobre el defensor (para el texto "No es muy efectivo..."). */
   tier: MatchupTier;
+  /** El defensor esquivó el ataque (por su velocidad): sin daño ni efectos sobre él. */
+  esquivado: boolean;
   critico: boolean;
   derrotado: boolean;
   efectoAplicado: { tipo: TipoEstado | "curacion"; magnitud: number } | null;
@@ -242,12 +337,8 @@ export function atacar(
 
   const atacanteStats = state.configuracion.reptiles[atacanteState.activo.reptilId];
   const defensorStats = state.configuracion.reptiles[defensorState.activo.reptilId];
-  const habilidad = state.configuracion.habilidades[habilidadId];
-  if (!atacanteStats || !defensorStats || !habilidad) throw new Error("Datos de combate incompletos.");
-  if (habilidad.propietarioId !== atacanteStats.id) throw new Error("Esa habilidad no pertenece al reptil activo.");
-  if (!puedeUsarHabilidad(atacanteState.activo, habilidad)) {
-    throw new Error("Esa habilidad no está disponible (cooldown o energía insuficiente).");
-  }
+  if (!atacanteStats || !defensorStats) throw new Error("Datos de combate incompletos.");
+  const habilidad = resolverHabilidad(state.configuracion, atacanteState.activo, atacanteStats, habilidadId);
 
   const multAtacante = multiplicadorEstado(atacanteState.activo, "atk");
   const multDefensor = multiplicadorEstado(defensorState.activo, "def");
@@ -264,9 +355,17 @@ export function atacar(
   const tier = getAffinityTier(atacanteStats.afinidad, defensorStats.afinidad);
   const superEfectivo = tier === "ventaja";
   // Orden fijo de tiradas (importa para los tests con semilla): 1) crítico, 2) variación ±15 %.
-  const critico = rng() * 100 < atacanteStats.criticoProbabilidad;
+  const criticoTirado = rng() * 100 < atacanteStats.criticoProbabilidad;
   const danoVariado = aplicarVarianza(resultado.danoEsperado, rng);
-  const danoFinal = critico ? round2(danoVariado * config.criticoMultiplicador) : danoVariado;
+  // 3) esquiva por velocidad (no en Apoyo). Un ataque esquivado no hace daño, no es crítico y no aplica efectos al rival.
+  const esquivado = resolverEsquiva(
+    { stats: atacanteStats, carta: atacanteState.activo },
+    { stats: defensorStats, carta: defensorState.activo },
+    habilidad,
+    rng,
+  );
+  const critico = criticoTirado && !esquivado;
+  const danoFinal = esquivado ? 0 : critico ? round2(danoVariado * config.criticoMultiplicador) : danoVariado;
 
   const nuevoHp = Math.max(0, defensorState.activo.hpActual - danoFinal);
   const derrotado = nuevoHp <= 0;
@@ -277,14 +376,7 @@ export function atacar(
 
   let nuevoAtacanteState: JugadorState = {
     ...atacanteState,
-    activo: {
-      ...atacanteState.activo,
-      energiaActual: atacanteState.activo.energiaActual - habilidad.costoEnergia,
-      cooldowns:
-        habilidad.cooldownTurnos > 0
-          ? { ...atacanteState.activo.cooldowns, [habilidadId]: habilidad.cooldownTurnos }
-          : atacanteState.activo.cooldowns,
-    },
+    activo: cartaTrasUsar(atacanteState.activo, habilidad),
   };
 
   let efectoAplicado: ResultadoAtaque["efectoAplicado"] = null;
@@ -301,8 +393,8 @@ export function atacar(
         activo: { ...nuevoAtacanteState.activo!, estados: [...nuevoAtacanteState.activo!.estados, estado] },
       };
       efectoAplicado = { tipo: habilidad.tipoEfecto, magnitud: habilidad.efectoMagnitud };
-    } else if (!derrotado) {
-      // veneno / debuff_atk / debuff_def: se aplica sobre el defensor, solo si sigue en pie.
+    } else if (!derrotado && !esquivado) {
+      // veneno / debuff_atk / debuff_def: se aplica sobre el defensor, solo si sigue en pie y no esquivó.
       const estado = { tipo: habilidad.tipoEfecto, turnosRestantes: habilidad.efectoTurnos ?? 2, magnitud: habilidad.efectoMagnitud };
       nuevoDefensorState = {
         ...nuevoDefensorState,
@@ -316,7 +408,9 @@ export function atacar(
     turno: state.numeroTurno,
     lado: ladoAtacante,
     tipo: "ataque",
-    mensaje: `${atacanteState.nombre} usa ${habilidad.nombre} contra ${defensorStats.nombre} (${Math.round(danoFinal)} de daño${critico ? ", ¡CRÍTICO!" : ""}).`,
+    mensaje: esquivado
+      ? `${atacanteState.nombre} usa ${habilidad.nombre} pero ${defensorStats.nombre} lo esquiva.`
+      : `${atacanteState.nombre} usa ${habilidad.nombre} contra ${defensorStats.nombre} (${Math.round(danoFinal)} de daño${critico ? ", ¡CRÍTICO!" : ""}).`,
     detalle: {
       habilidadId,
       danoEsperado: danoFinal,
@@ -350,6 +444,7 @@ export function atacar(
     stab: resultado.stab,
     superEfectivo,
     tier,
+    esquivado,
     critico,
     derrotado,
     efectoAplicado,

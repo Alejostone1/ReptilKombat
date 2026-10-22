@@ -16,14 +16,14 @@ function partida() {
 
 describe("opciones de ataque", () => {
   it("con el daño oculto no expone números y el orden es fijo por categoría", () => {
-    const op = opcionesDeAtaque(partida(), ABILITIES, DEFAULT_ENGINE_CONFIG, true);
+    const op = opcionesDeAtaque(partida(), DEFAULT_ENGINE_CONFIG, true);
     expect(op).toHaveLength(4);
     expect(op.every((o) => o.danoEstimado === 0)).toBe(true);
     expect(op.map((o) => o.habilidad.categoria)).toEqual(["Fisica", "Tecnica", "Control", "Estado"]);
   });
 
   it("con el daño visible ordena por daño (comportamiento anterior)", () => {
-    const op = opcionesDeAtaque(partida(), ABILITIES, DEFAULT_ENGINE_CONFIG, false);
+    const op = opcionesDeAtaque(partida(), DEFAULT_ENGINE_CONFIG, false);
     const disp = op.filter((o) => o.disponible);
     for (let i = 1; i < disp.length; i++) expect(disp[i - 1].danoEstimado).toBeGreaterThanOrEqual(disp[i].danoEstimado);
   });

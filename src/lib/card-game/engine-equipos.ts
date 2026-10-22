@@ -10,7 +10,9 @@ import {
   construirConfiguracion,
   multiplicadorEstado,
   nuevaCartaEnJuego,
-  puedeUsarHabilidad,
+  resolverHabilidad,
+  resolverEsquiva,
+  cartaTrasUsar,
   reptilDesdeStats,
   retirarABanca,
   round2,
@@ -191,6 +193,7 @@ export interface ResultadoAtaqueEquipos {
   stab: number;
   superEfectivo: boolean;
   tier: MatchupTier;
+  esquivado: boolean;
   critico: boolean;
   derrotado: boolean;
   efectoAplicado: { tipo: TipoEstado | "curacion"; magnitud: number } | null;
@@ -216,10 +219,8 @@ export function atacarEquipos(
 
   const atacanteStats = state.configuracion.reptiles[atacanteJ.activo.reptilId];
   const defensorStats = state.configuracion.reptiles[defensorJ.activo.reptilId];
-  const habilidad = state.configuracion.habilidades[habilidadId];
-  if (!atacanteStats || !defensorStats || !habilidad) throw new Error("Datos de combate incompletos.");
-  if (habilidad.propietarioId !== atacanteStats.id) throw new Error("Esa habilidad no pertenece al reptil activo.");
-  if (!puedeUsarHabilidad(atacanteJ.activo, habilidad)) throw new Error("Esa habilidad no está disponible (cooldown o energía insuficiente).");
+  if (!atacanteStats || !defensorStats) throw new Error("Datos de combate incompletos.");
+  const habilidad = resolverHabilidad(state.configuracion, atacanteJ.activo, atacanteStats, habilidadId);
 
   const atacante = reptilDesdeStats(atacanteStats, { atk: Math.round(atacanteStats.atk * multiplicadorEstado(atacanteJ.activo, "atk")) });
   const defensor = reptilDesdeStats(defensorStats, {
@@ -229,9 +230,12 @@ export function atacarEquipos(
   const resultado = calculateDamage(atacante, defensor, habilidad, config);
   const tier = getAffinityTier(atacanteStats.afinidad, defensorStats.afinidad);
   // Mismo orden de tiradas que en 1 vs 1: 1) crítico, 2) variación ±15 %.
-  const critico = rng() * 100 < atacanteStats.criticoProbabilidad;
+  const criticoTirado = rng() * 100 < atacanteStats.criticoProbabilidad;
   const danoVariado = aplicarVarianza(resultado.danoEsperado, rng);
-  const danoFinal = critico ? round2(danoVariado * config.criticoMultiplicador) : danoVariado;
+  // 3) esquiva por velocidad (misma regla que en 1 vs 1).
+  const esquivado = resolverEsquiva({ stats: atacanteStats, carta: atacanteJ.activo }, { stats: defensorStats, carta: defensorJ.activo }, habilidad, rng);
+  const critico = criticoTirado && !esquivado;
+  const danoFinal = esquivado ? 0 : critico ? round2(danoVariado * config.criticoMultiplicador) : danoVariado;
 
   const nuevoHp = Math.max(0, defensorJ.activo.hpActual - danoFinal);
   const derrotado = nuevoHp <= 0;
@@ -242,12 +246,7 @@ export function atacarEquipos(
 
   let nuevoAtacante: JugadorState = {
     ...atacanteJ,
-    activo: {
-      ...atacanteJ.activo,
-      energiaActual: atacanteJ.activo.energiaActual - habilidad.costoEnergia,
-      cooldowns:
-        habilidad.cooldownTurnos > 0 ? { ...atacanteJ.activo.cooldowns, [habilidadId]: habilidad.cooldownTurnos } : atacanteJ.activo.cooldowns,
-    },
+    activo: cartaTrasUsar(atacanteJ.activo, habilidad),
   };
 
   let efectoAplicado: ResultadoAtaqueEquipos["efectoAplicado"] = null;
@@ -261,7 +260,7 @@ export function atacarEquipos(
       const estado = { tipo: habilidad.tipoEfecto, turnosRestantes: habilidad.efectoTurnos ?? 2, magnitud: habilidad.efectoMagnitud };
       nuevoAtacante = { ...nuevoAtacante, activo: { ...nuevoAtacante.activo!, estados: [...nuevoAtacante.activo!.estados, estado] } };
       efectoAplicado = { tipo: habilidad.tipoEfecto, magnitud: habilidad.efectoMagnitud };
-    } else if (!derrotado) {
+    } else if (!derrotado && !esquivado) {
       const estado = { tipo: habilidad.tipoEfecto, turnosRestantes: habilidad.efectoTurnos ?? 2, magnitud: habilidad.efectoMagnitud };
       nuevoDefensor = { ...nuevoDefensor, activo: { ...nuevoDefensor.activo!, estados: [...nuevoDefensor.activo!.estados, estado] } };
       efectoAplicado = { tipo: habilidad.tipoEfecto, magnitud: habilidad.efectoMagnitud };
@@ -274,7 +273,9 @@ export function atacarEquipos(
       turno: state.numeroTurno,
       lado,
       tipo: "ataque",
-      mensaje: `${atacanteJ.nombre} usa ${habilidad.nombre} contra ${defensorStats.nombre} de ${defensorJ.nombre} (${Math.round(danoFinal)} de daño${critico ? ", ¡CRÍTICO!" : ""}).`,
+      mensaje: esquivado
+        ? `${atacanteJ.nombre} usa ${habilidad.nombre} pero ${defensorStats.nombre} de ${defensorJ.nombre} lo esquiva.`
+        : `${atacanteJ.nombre} usa ${habilidad.nombre} contra ${defensorStats.nombre} de ${defensorJ.nombre} (${Math.round(danoFinal)} de daño${critico ? ", ¡CRÍTICO!" : ""}).`,
       detalle: {
         habilidadId,
         danoEsperado: danoFinal,
@@ -303,6 +304,7 @@ export function atacarEquipos(
     stab: resultado.stab,
     superEfectivo: tier === "ventaja",
     tier,
+    esquivado,
     critico,
     derrotado,
     efectoAplicado,

@@ -11,9 +11,11 @@ interface ReptileImageProps {
   className?: string;
   sizes?: string;
   priority?: boolean;
+  /** En las cartas de juego la fuente de la foto no se pinta encima (queda como tooltip) para no ensuciar la carta. */
+  sinCredito?: boolean;
 }
 
-export function ReptileImage({ nombreCientifico, nombre, className, sizes, priority }: ReptileImageProps) {
+export function ReptileImage({ nombreCientifico, nombre, className, sizes, priority, sinCredito }: ReptileImageProps) {
   const [state, setState] = useState<"loading" | "ready" | "error">("loading");
   const [result, setResult] = useState<ReptileImageResult | null>(null);
 
@@ -32,7 +34,7 @@ export function ReptileImage({ nombreCientifico, nombre, className, sizes, prior
   const src = state === "error" ? "/reptile-fallback.svg" : (result?.url ?? "/reptile-fallback.svg");
 
   return (
-    <div className={cn("relative overflow-hidden bg-[#0D1C18]", className)}>
+    <div className={cn("relative overflow-hidden bg-[#0D1C18]", className)} title={sinCredito && result && !result.esFallback ? `Foto: ${result.fuente}` : undefined}>
       {state === "loading" && (
         <div className="absolute inset-0 animate-pulse bg-gradient-to-br from-[#122720] to-[#0D1C18]" />
       )}
@@ -47,7 +49,7 @@ export function ReptileImage({ nombreCientifico, nombre, className, sizes, prior
         onError={() => setState("error")}
         unoptimized={src.startsWith("http")}
       />
-      {result && !result.esFallback && (
+      {!sinCredito && result && !result.esFallback && (
         <span className="absolute bottom-1 right-1 rounded bg-black/60 px-1.5 py-0.5 text-[10px] text-white/70">
           {result.fuente.includes("wikipedia.org") ? "Wikipedia" : result.fuente}
         </span>

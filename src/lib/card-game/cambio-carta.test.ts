@@ -4,7 +4,7 @@ import { ABILITIES } from "@/data/abilities";
 import { buildReptil } from "@/lib/game-engine/stats";
 import { DEFAULT_ENGINE_CONFIG } from "@/lib/game-engine/config";
 import { secuenciaRng } from "@/lib/utils/rng";
-import { crearPartida, invocar, atacar, cambiar, puedeCambiar, puedeInvocar, bancaDe, toPublicView, verificarGanador } from "./engine";
+import { FORCEJEO_ID, habilidadesDeCarta, puedeUsarHabilidad, crearPartida, invocar, atacar, cambiar, puedeCambiar, puedeInvocar, bancaDe, toPublicView, verificarGanador } from "./engine";
 import { decidirAccionIA } from "./ai";
 import type { GameState } from "./types";
 
@@ -18,7 +18,14 @@ function partida(mazoA = ["dragon-barbudo", "uromastyx"], mazoB = ["caiman-negro
 }
 
 const fisica = (id: string) => ABILITIES.find((a) => a.propietarioId === id && a.categoria === "Fisica")!;
-const golpear = (s: GameState, reptilId: string) => atacar(s, fisica(reptilId).id, ROSTER, ABILITIES, DEFAULT_ENGINE_CONFIG, { rng: SIN_CRITICO() }).state;
+// Golpea con el ataque de mayor potencia que pueda usar y, si ninguno puede, con el Forcejeo de último recurso.
+const golpear = (s: GameState) => {
+  const activo = (s.turno === "A" ? s.jugadorA : s.jugadorB).activo!;
+  const mejor = habilidadesDeCarta(s.configuracion, activo)
+    .filter((h) => puedeUsarHabilidad(activo, h))
+    .sort((a, b) => b.potencia - a.potencia)[0];
+  return atacar(s, mejor?.id ?? FORCEJEO_ID, ROSTER, ABILITIES, DEFAULT_ENGINE_CONFIG, { rng: SIN_CRITICO() }).state;
+};
 
 describe("cambio de carta", () => {
   it("no se puede cambiar antes del combate ni sin carta de repuesto", () => {
@@ -31,8 +38,8 @@ describe("cambio de carta", () => {
 
   it("consume el turno y deja la activa en la banca con su vida actual", () => {
     let s = partida();
-    s = golpear(s, "dragon-barbudo"); // A ataca a B
-    s = golpear(s, "caiman-negro"); // B ataca a A
+    s = golpear(s); // A ataca a B
+    s = golpear(s); // B ataca a A
     expect(s.turno).toBe("A");
     const hpAntes = s.jugadorA.activo!.hpActual;
     expect(hpAntes).toBeLessThan(ROSTER.find((r) => r.id === "dragon-barbudo")!.hp);
@@ -49,7 +56,7 @@ describe("cambio de carta", () => {
 
   it("volver a una carta de la banca la trae con la vida que conservaba, y rechaza cambios inválidos", () => {
     let s = partida();
-    s = golpear(s, "dragon-barbudo");
+    s = golpear(s);
     const hpB = s.jugadorB.activo!.hpActual; // B recibió daño
     s = cambiar(s, "cocodrilo-del-nilo", ROSTER); // turno de B: cambia
     expect(bancaDe(s.jugadorB)[0].hpActual).toBe(hpB);
@@ -64,7 +71,7 @@ describe("cambio de carta", () => {
     let s = partida();
     const especial = ABILITIES.find((a) => a.propietarioId === "dragon-barbudo" && a.categoria === "Tecnica")!;
     s = atacar(s, especial.id, ROSTER, ABILITIES, DEFAULT_ENGINE_CONFIG, { rng: SIN_CRITICO() }).state;
-    s = golpear(s, "caiman-negro");
+    s = golpear(s);
     const conEstado: GameState = {
       ...s,
       jugadorA: { ...s.jugadorA, activo: { ...s.jugadorA.activo!, estados: [{ tipo: "veneno", turnosRestantes: 3, magnitud: 5 }], aturdidoTurnos: 1 } },
@@ -80,7 +87,7 @@ describe("cambio de carta", () => {
     s = cambiar(s, "uromastyx", ROSTER); // A: el geco pasa a la banca; entra uromastyx
     let guard = 0;
     while (s.jugadorA.activo && guard++ < 60) {
-      s = golpear(s, s.turno === "A" ? "uromastyx" : "cocodrilo-del-nilo");
+      s = golpear(s);
     }
     expect(s.jugadorA.cementerio).toContain("uromastyx");
     expect(bancaDe(s.jugadorA)).toHaveLength(1);

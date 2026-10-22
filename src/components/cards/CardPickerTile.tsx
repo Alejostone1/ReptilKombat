@@ -88,7 +88,7 @@ export function CardPickerTile({ reptil, maximos, seleccionada, deshabilitada, o
       style={{ borderColor: color, touchAction: "manipulation" }}
     >
       <div className="relative aspect-[4/3] w-full">
-        <ReptileImage nombre={reptil.nombre} nombreCientifico={reptil.nombreCientifico} className="h-full w-full" sizes="(max-width: 640px) 45vw, 200px" />
+        <ReptileImage nombre={reptil.nombre} nombreCientifico={reptil.nombreCientifico} className="h-full w-full" sizes="(max-width: 640px) 45vw, 200px" sinCredito />
         <span className="absolute left-1 top-1 rounded-full px-1.5 py-0.5 text-[10px] font-bold" style={{ backgroundColor: `${color}CC`, color: "#04120b" }}>
           {AFFINITY_META[reptil.afinidad].emoji}
         </span>

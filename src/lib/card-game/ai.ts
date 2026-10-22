@@ -4,7 +4,7 @@ import type { EngineConfig } from "@/lib/game-engine/config";
 import { calculateDamage } from "@/lib/game-engine/damage";
 import { getAffinityTier } from "@/lib/game-engine/affinities";
 import type { GameState, Lado } from "./types";
-import { puedeInvocar, puedeAtacar, habilidadesDisponibles, puedeUsarHabilidad, bancaDe } from "./engine";
+import { puedeInvocar, puedeAtacar, habilidadesDisponibles, puedeUsarHabilidad, sinAtaquesUtilizables, bancaDe, FORCEJEO_ID } from "./engine";
 
 export type AccionIA = { tipo: "invocar"; reptilId: string } | { tipo: "atacar"; habilidadId: string };
 
@@ -61,7 +61,11 @@ export function decidirAccionIA(
     const defensorBase = rival.activo ? roster.find((r) => r.id === rival.activo!.reptilId) : null;
     // Nunca elige una habilidad en cooldown o sin energía suficiente: mismo gate que usa la UI humana.
     const disponibles = habilidadesDisponibles(state, abilities).filter((h) => puedeUsarHabilidad(propio.activo!, h));
-    if (!atacante || !defensorBase || !propio.activo || !rival.activo || disponibles.length === 0) return null;
+    if (!atacante || !defensorBase || !propio.activo || !rival.activo) return null;
+    // Sin ataques utilizables (usos agotados): el Forcejeo evita que la IA deje la partida atascada.
+    if (disponibles.length === 0) {
+      return sinAtaquesUtilizables(state.configuracion, propio.activo) ? { tipo: "atacar", habilidadId: FORCEJEO_ID } : null;
+    }
 
     const defensorConHp: Reptil = { ...defensorBase, hp: rival.activo.hpActual };
     const tierPropio = getAffinityTier(atacante.afinidad, defensorBase.afinidad);

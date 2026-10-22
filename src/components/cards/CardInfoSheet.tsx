@@ -7,6 +7,7 @@ import { AFFINITY_META } from "@/types/affinity";
 import { ReptileImage } from "@/components/reptiles/ReptileImage";
 import { useRoster } from "@/lib/hooks/useRoster";
 import { CATEGORIA_INFO } from "@/lib/game-engine/categorias";
+import { descripcionHabilidad } from "@/lib/game-engine/descripcion-habilidad";
 import { STAT_LABELS } from "@/lib/game-engine/stat-labels";
 
 interface CardInfoSheetProps {
@@ -91,18 +92,18 @@ export function CardInfoSheet({ reptil, onClose }: CardInfoSheetProps) {
             <ul className="mt-1.5 space-y-1.5">
               {ataques.length === 0 && <li className="text-xs text-foreground-muted">Cargando ataques...</li>}
               {ataques.map((a) => (
-                <li
-                  key={a.id}
-                  className="flex items-center justify-between rounded-lg border border-border-subtle bg-panel-secondary px-3 py-2 text-sm"
-                >
-                  <span className="font-semibold text-foreground">{a.nombre}</span>
-                  <span className="text-xs text-foreground-muted">
-                    {CATEGORIA_INFO[a.categoria].icono} {CATEGORIA_INFO[a.categoria].nombre}
-                  </span>
+                <li key={a.id} className="rounded-lg border border-border-subtle bg-panel-secondary px-3 py-2 text-sm">
+                  <div className="flex items-center justify-between gap-2">
+                    <span className="font-semibold text-foreground">{a.nombre}</span>
+                    <span className="shrink-0 text-xs text-foreground-muted">
+                      {CATEGORIA_INFO[a.categoria].icono} {CATEGORIA_INFO[a.categoria].nombre}
+                    </span>
+                  </div>
+                  <p className="mt-0.5 text-xs leading-snug text-foreground-muted">{descripcionHabilidad(a)}</p>
                 </li>
               ))}
             </ul>
-            <p className="mt-2 text-[11px] text-foreground-muted">¿Cuánto pega cada uno? Eso lo descubres peleando.</p>
+            <p className="mt-2 text-[11px] text-foreground-muted">Cada ataque se puede usar 3 veces por partida. ¿Cuánto pega? ¡Eso lo descubres peleando!</p>
           </motion.div>
         </motion.div>
       )}

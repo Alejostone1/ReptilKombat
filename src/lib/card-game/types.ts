@@ -21,6 +21,12 @@ export interface CartaEnJuego {
   estados: EstadoActivo[];
   /** Turnos que la carta sigue aturdida (0 = no aturdida): al empezar su turno lo pierde automáticamente. */
   aturdidoTurnos: number;
+  /**
+   * habilidadId -> veces que ya se usó en esta partida. Cada ataque tiene USOS_MAXIMOS_HABILIDAD usos y NO
+   * se restauran nunca (ni al cambiar de turno ni al retirar la carta a la banca y volver a sacarla).
+   * Opcional: estados guardados antes de existir el límite no lo traen (= 0 usos).
+   */
+  usos?: Record<string, number>;
 }
 
 export interface JugadorState {
@@ -63,6 +69,8 @@ export interface CombatStats {
   hp: number;
   atk: number;
   def: number;
+  /** Velocidad (solo para dar identidad a las animaciones). Opcional: partidas guardadas antes de existir no la traen. */
+  spd?: number;
   energiaMax: number;
   criticoProbabilidad: number;
 }
@@ -91,3 +99,6 @@ export interface GameState {
 }
 
 export const MAX_CARTAS_MAZO = 4;
+
+/** Veces que cada ataque de una carta puede usarse durante la partida. */
+export const USOS_MAXIMOS_HABILIDAD = 3;

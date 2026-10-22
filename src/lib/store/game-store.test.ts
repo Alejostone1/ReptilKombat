@@ -4,6 +4,7 @@ import { ABILITIES } from "@/data/abilities";
 import { buildReptil } from "@/lib/game-engine/stats";
 import { DEFAULT_ENGINE_CONFIG } from "@/lib/game-engine/config";
 import { useGameStore } from "./game-store";
+import { FORCEJEO_ID, habilidadesDeCarta, puedeUsarHabilidad } from "@/lib/card-game/engine";
 
 const ROSTER = REPTILES_BASE.map((base) => buildReptil(base, ABILITIES));
 
@@ -18,18 +19,15 @@ describe("game-store: ultimoDerrotado", () => {
     useGameStore.getState().invocar("geco-de-cola-de-hoja", ROSTER);
     useGameStore.getState().invocar("cocodrilo-del-nilo", ROSTER);
 
-    // Ataque Físico (Normal): sin cooldown ni costo de energía, se puede repetir cada turno sin límite.
-    const habilidadPoderosa = ABILITIES.find((a) => a.propietarioId === "cocodrilo-del-nilo" && a.categoria === "Fisica")!;
-    const habilidadA = ABILITIES.find((a) => a.propietarioId === "geco-de-cola-de-hoja" && a.categoria === "Fisica")!;
-
+    // Cada turno usa el ataque de mayor potencia que pueda usar (cada uno tiene 3 usos) y, si no le queda ninguno, el Forcejeo.
     let guard = 0;
-    while (useGameStore.getState().state?.fase !== "terminado" && guard < 50) {
-      const turno = useGameStore.getState().state?.turno;
-      if (turno === "B") {
-        useGameStore.getState().atacar(habilidadPoderosa.id, ROSTER, ABILITIES, DEFAULT_ENGINE_CONFIG);
-      } else if (turno === "A") {
-        useGameStore.getState().atacar(habilidadA.id, ROSTER, ABILITIES, DEFAULT_ENGINE_CONFIG);
-      }
+    while (useGameStore.getState().state?.fase !== "terminado" && guard < 80) {
+      const s = useGameStore.getState().state!;
+      const activo = (s.turno === "A" ? s.jugadorA : s.jugadorB).activo!;
+      const mejor = habilidadesDeCarta(s.configuracion, activo)
+        .filter((h) => puedeUsarHabilidad(activo, h))
+        .sort((a, b) => b.potencia - a.potencia)[0];
+      useGameStore.getState().atacar(mejor?.id ?? FORCEJEO_ID, ROSTER, ABILITIES, DEFAULT_ENGINE_CONFIG);
       guard++;
     }
 

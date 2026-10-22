@@ -437,7 +437,7 @@ export const REPTILES_BASE: ReptilBase[] = [
     distribucion: 'Madagascar',
     descripcion: 'Mimetismo extremo con hojas secas; prácticamente indetectable en reposo.',
     hp: 52, atk: 66, def: 44, spd: 64, inst: 84, adp: 50,
-    energiaMax: 100, criticoProbabilidad: 24,
+    energiaMax: 100, criticoProbabilidad: 26,
     pasiva: 'Adaptación de camuflaje: rendimiento especializado como fantasma.',
   },
   {

@@ -17,9 +17,12 @@ import {
   rivalesDe,
   type EstadoEquipos,
 } from "@/lib/card-game/engine-equipos";
-import { bancaDe } from "@/lib/card-game/engine";
 import { opcionesContra } from "@/lib/card-game/opciones-ataque";
 import { impactoFlotante } from "@/lib/card-game/mensajes";
+import { resultadoRevelado, type Etapa, type EstiloAtaque } from "@/lib/card-game/estilo-ataque";
+import type { FxCarta } from "./pose-combate";
+import { bancaDe, nombreDeHabilidad } from "@/lib/card-game/engine";
+import { useSecuenciaCombate } from "@/lib/hooks/useSecuenciaCombate";
 import { FEATURES } from "@/config/features";
 import { AFFINITY_META } from "@/types/affinity";
 import { urlDeSala } from "@/lib/utils/sala-qr";
@@ -46,7 +49,17 @@ interface AsientoProps {
   esObjetivo: boolean;
   puedeElegir: boolean;
   onElegir: () => void;
-  ataque: { atacanteIdx: number; objetivoIdx: number; id: number; texto: string; tono: "dano" | "critico" | "curacion" | "info"; sobre: "rival" | "atacante" } | null;
+  ataque: {
+    atacanteIdx: number;
+    objetivoIdx: number;
+    id: number;
+    texto: string;
+    tono: "dano" | "critico" | "curacion" | "info";
+    sobre: "rival" | "atacante";
+    estilo: EstiloAtaque;
+    etapa: Etapa | null;
+    esquivado?: boolean;
+  } | null;
   derrotado: { idx: number; reptilId: string } | null;
 }
 
@@ -58,9 +71,26 @@ function Asiento({ estado, idx, miIdx, roster, esObjetivo, puedeElegir, onElegir
   const esTurno = estado.turnoIdx === idx && estado.fase !== "terminado";
   const equipo = equipoDe(idx);
   const banca = bancaDe(j);
-  // El número flota sobre quien lo recibe: el objetivo (daño) o el propio atacante (curación/mejora).
+  // El número flota sobre quien lo recibe (el objetivo en un golpe; el propio atacante en curación/mejora) y
+  // solo desde el impacto: antes no se revela nada del resultado.
+  const revelado = !!ataque && resultadoRevelado(ataque.etapa);
   const impacto =
-    ataque && (ataque.sobre === "rival" ? ataque.objetivoIdx === idx : ataque.atacanteIdx === idx) ? { id: ataque.id, texto: ataque.texto, tono: ataque.tono } : null;
+    ataque && revelado && ataque.etapa && (ataque.sobre === "rival" ? ataque.objetivoIdx === idx : ataque.atacanteIdx === idx) ? { id: ataque.id, texto: ataque.texto, tono: ataque.tono } : null;
+  // Animación de combate de este asiento: mi equipo está abajo, así que ataca hacia arriba y recibe desde arriba.
+  const esAtacante = ataque?.atacanteIdx === idx;
+  const esObjetivoFx = ataque?.sobre === "rival" ? ataque.objetivoIdx === idx : esAtacante;
+  const fx: FxCarta | null =
+    ataque && ataque.etapa && (esAtacante || esObjetivoFx)
+      ? {
+          id: ataque.id,
+          etapa: ataque.etapa,
+          rol: esAtacante && esObjetivoFx ? "ambos" : esAtacante ? "atacante" : "objetivo",
+          dx: 0,
+          dy: equipoDe(ataque.atacanteIdx) === equipoDe(miIdx) ? -1 : 1,
+          estilo: ataque.estilo,
+          esquivado: ataque.esquivado,
+        }
+      : null;
 
   return (
     <div className="flex min-w-0 flex-col items-center gap-1.5">
@@ -82,8 +112,7 @@ function Asiento({ estado, idx, miIdx, roster, esObjetivo, puedeElegir, onElegir
           estados={activo.estados}
           aturdidoTurnos={activo.aturdidoTurnos}
           turnoActivo={esTurno}
-          sacudir={ataque?.objetivoIdx === idx && ataque.sobre === "rival" && ataque.tono !== "info"}
-          embestida={ataque?.atacanteIdx === idx ? (idx % 2 === 0 ? 1 : -1) : null}
+          fx={fx}
           impacto={impacto}
           seleccionable={puedeElegir}
           seleccionada={esObjetivo}
@@ -147,7 +176,17 @@ export function Sala2v2({ codigo, viewToken }: { codigo: string; viewToken: stri
     }
   }, [room.estadoSala]);
 
+  // Secuencia de combate: hasta el impacto la mesa muestra el estado de ANTES (la vida no se adelanta).
+  const ataqueEnCurso = useMemo(
+    () => (room.ultimoAtaque ? { id: room.ultimoAtaque.id, estilo: room.ultimoAtaque.estilo, antes: room.ultimoAtaque.antes } : null),
+    [room.ultimoAtaque],
+  );
+  const seq = useSecuenciaCombate<EstadoEquipos>(ataqueEnCurso, room.estado, room.limpiarUltimoResultado);
+  const animando = seq.bloqueado;
+  const [enviando, setEnviando] = useState(false);
+
   const estado = room.estado;
+  const vista = seq.estadoMostrado ?? estado;
   const miIdx = room.idx ?? 0;
   const esMiTurno = !!estado && estado.turnoIdx === miIdx && estado.fase !== "terminado";
   const objetivos = useMemo(() => (estado ? objetivosValidos(estado, miIdx) : []), [estado, miIdx]);
@@ -158,16 +197,26 @@ export function Sala2v2({ codigo, viewToken }: { codigo: string; viewToken: stri
     const propio = estado.jugadores[miIdx].activo;
     const rival = estado.jugadores[objetivo].activo;
     if (!propio || !rival) return [];
-    return opcionesContra(propio, rival, estado.configuracion, Object.values(estado.configuracion.habilidades), config, FEATURES.HIDE_ATTACK_DAMAGE);
+    return opcionesContra(propio, rival, estado.configuracion, config, FEATURES.HIDE_ATTACK_DAMAGE);
   }, [estado, esMiTurno, objetivo, miIdx, config]);
 
   const ataqueTablero = useMemo(() => {
     const r = room.ultimoResultado;
     const a = room.ultimoAtaque;
     if (!r || !a) return null;
-    const imp = impactoFlotante({ dano: r.danoEsperado, critico: r.critico, efecto: r.efectoAplicado });
-    return { id: a.id, atacanteIdx: a.atacanteIdx, objetivoIdx: a.objetivoIdx, texto: imp.texto, tono: imp.tono, sobre: imp.sobre };
+    const imp = impactoFlotante({ dano: r.danoEsperado, critico: r.critico, esquivado: r.esquivado, efecto: r.efectoAplicado });
+    return { id: a.id, atacanteIdx: a.atacanteIdx, objetivoIdx: a.objetivoIdx, texto: imp.texto, tono: imp.tono, sobre: imp.sobre, estilo: a.estilo, esquivado: !!r.esquivado };
   }, [room.ultimoResultado, room.ultimoAtaque]);
+
+  async function onAtacar(habilidadId: string, objetivoIdx: number) {
+    if (animando || enviando) return;
+    setEnviando(true);
+    try {
+      await room.atacar(habilidadId, objetivoIdx);
+    } finally {
+      setEnviando(false);
+    }
+  }
 
   if (room.error && !estado && room.estadoSala === null) {
     return (
@@ -253,9 +302,10 @@ export function Sala2v2({ codigo, viewToken }: { codigo: string; viewToken: stri
   }
 
   if (!estado) return null;
+  const mesa = vista ?? estado;
 
   // ───────── Fin de partida ─────────
-  if (estado.fase === "terminado" || room.estadoSala === "FINISHED") {
+  if (!animando && (estado.fase === "terminado" || room.estadoSala === "FINISHED")) {
     const gane = (room.ganador ?? estado.ganador) === room.lado;
     return (
       <div className="flex min-h-full flex-col items-center justify-center gap-4 px-4 text-center">
@@ -282,7 +332,7 @@ export function Sala2v2({ codigo, viewToken }: { codigo: string; viewToken: stri
   const rivales = rivalesDe(miIdx);
   const mios = [miIdx, companeroDe(miIdx)];
   const puedeElegirObjetivo = atacar && objetivos.length > 1;
-  const nombreHabilidad = room.ultimoResultado ? estado.configuracion.habilidades[room.ultimoResultado.habilidadId]?.nombre : undefined;
+  const nombreHabilidad = room.ultimoResultado ? nombreDeHabilidad(estado.configuracion, room.ultimoResultado.habilidadId) : undefined;
 
   return (
     <div className="flex min-h-full flex-col gap-3">
@@ -296,7 +346,7 @@ export function Sala2v2({ codigo, viewToken }: { codigo: string; viewToken: stri
       </div>
 
       <div className={cn("rounded-xl border py-2 text-center", esMiTurno ? "border-reptile-green/60 bg-reptile-green/10" : "border-border-subtle bg-panel")}>
-        <p className="text-[10px] uppercase tracking-widest text-foreground-muted">Turno {estado.numeroTurno}</p>
+        <p className="text-[10px] uppercase tracking-widest text-foreground-muted">Turno {mesa.numeroTurno}</p>
         <p className={cn("text-base font-black", esMiTurno ? "text-reptile-green" : "text-foreground")}>{esMiTurno ? "¡Tu turno!" : `Turno de ${nombreTurno}`}</p>
       </div>
 
@@ -305,14 +355,14 @@ export function Sala2v2({ codigo, viewToken }: { codigo: string; viewToken: stri
           {rivales.map((i) => (
             <Asiento
               key={i}
-              estado={estado}
+              estado={mesa}
               idx={i}
               miIdx={miIdx}
               roster={roster}
               esObjetivo={atacar && objetivo === i}
               puedeElegir={!!puedeElegirObjetivo && estado.jugadores[i].activo !== null}
               onElegir={() => setObjetivoSel(i)}
-              ataque={ataqueTablero}
+              ataque={ataqueTablero ? { ...ataqueTablero, etapa: seq.etapa } : null}
               derrotado={room.ultimoDerrotado}
             />
           ))}
@@ -320,7 +370,7 @@ export function Sala2v2({ codigo, viewToken }: { codigo: string; viewToken: stri
         <div className="my-2 text-center text-lg font-black italic text-foreground-muted">VS</div>
         <div className="grid grid-cols-2 gap-3">
           {mios.map((i) => (
-            <Asiento key={i} estado={estado} idx={i} miIdx={miIdx} roster={roster} esObjetivo={false} puedeElegir={false} onElegir={() => undefined} ataque={ataqueTablero} derrotado={room.ultimoDerrotado} />
+            <Asiento key={i} estado={mesa} idx={i} miIdx={miIdx} roster={roster} esObjetivo={false} puedeElegir={false} onElegir={() => undefined} ataque={ataqueTablero ? { ...ataqueTablero, etapa: seq.etapa } : null} derrotado={room.ultimoDerrotado} />
           ))}
         </div>
       </div>
@@ -331,7 +381,11 @@ export function Sala2v2({ codigo, viewToken }: { codigo: string; viewToken: stri
         </button>
       )}
 
-      {(invocar || atacar) && (
+      {animando && (
+        <div className="mt-auto rounded-xl border border-border-subtle bg-panel/70 py-3 text-center text-sm font-bold tracking-wide text-foreground-muted">⚔️ ¡Combate!</div>
+      )}
+
+      {!animando && (invocar || atacar) && (
         <ActionDock
           titulo={
             invocar
@@ -340,7 +394,7 @@ export function Sala2v2({ codigo, viewToken }: { codigo: string; viewToken: stri
           }
         >
           {invocar && <ManoInvocar candidatos={candidatos} onElegir={(id) => room.invocar(id)} />}
-          {atacar && <AttackMenu opciones={opciones} ocultarDano={FEATURES.HIDE_ATTACK_DAMAGE} onAtacar={(id) => room.atacar(id, objetivo!)} />}
+          {atacar && <AttackMenu opciones={opciones} ocultarDano={FEATURES.HIDE_ATTACK_DAMAGE} onAtacar={(id) => onAtacar(id, objetivo!)} ocupado={enviando} />}
           {atacar && FEATURES.CARD_SWAP && puedeCambiarEquipos(estado) && (
             <button
               type="button"
@@ -354,7 +408,7 @@ export function Sala2v2({ codigo, viewToken }: { codigo: string; viewToken: stri
         </ActionDock>
       )}
 
-      {!esMiTurno && <p className="text-center text-sm text-foreground-muted">Esperando a {nombreTurno}…</p>}
+      {!animando && !esMiTurno && <p className="text-center text-sm text-foreground-muted">Esperando a {nombreTurno}…</p>}
 
       <SwapSheet
         abierto={cambiando}
@@ -366,7 +420,7 @@ export function Sala2v2({ codigo, viewToken }: { codigo: string; viewToken: stri
         onClose={() => setCambiando(false)}
       />
 
-      <AttackAnimation resultado={room.ultimoResultado} habilidadNombre={nombreHabilidad} onComplete={room.limpiarUltimoResultado} />
+      <AttackAnimation resultado={room.ultimoResultado} habilidadNombre={nombreHabilidad} etapa={seq.etapa} />
 
       <div className="text-center">
         <Link href="/jugar" className="text-xs text-foreground-muted hover:text-reptile-green">

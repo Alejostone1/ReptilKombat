@@ -6,7 +6,9 @@ import Link from "next/link";
 import { useRoster } from "@/lib/hooks/useRoster";
 import { useEngineData } from "@/lib/hooks/useEngineData";
 import { useGameRoom } from "@/lib/hooks/useGameRoom";
-import { puedeInvocar, puedeAtacar, puedeCambiar } from "@/lib/card-game/engine";
+import { puedeInvocar, puedeAtacar, puedeCambiar, nombreDeHabilidad } from "@/lib/card-game/engine";
+import { useSecuenciaCombate } from "@/lib/hooks/useSecuenciaCombate";
+import type { GameState } from "@/lib/card-game/types";
 import { opcionesDeAtaque } from "@/lib/card-game/opciones-ataque";
 import { ataqueParaTablero } from "@/lib/card-game/mensajes";
 import { FEATURES } from "@/config/features";
@@ -62,7 +64,7 @@ function Sala1v1Online() {
   const params = useParams<{ codigo: string }>();
   const codigo = params.codigo.toUpperCase();
   const router = useRouter();
-  const { roster, abilities } = useRoster();
+  const { roster } = useRoster();
   const { config } = useEngineData();
   const [viewToken, setViewToken] = useState<string | null | undefined>(undefined);
 
@@ -73,6 +75,15 @@ function Sala1v1Online() {
   }, [codigo]);
 
   const room = useGameRoom(codigo, viewToken ?? null);
+  // Secuencia de combate (mis ataques y los del rival): hasta el impacto se sigue viendo el estado de ANTES.
+  const ataqueEnCurso = useMemo(
+    () => (room.ultimoAtaque ? { id: room.ultimoAtaque.id, estilo: room.ultimoAtaque.estilo, antes: room.ultimoAtaque.antes } : null),
+    [room.ultimoAtaque],
+  );
+  const seq = useSecuenciaCombate<GameState>(ataqueEnCurso, room.estado, room.limpiarUltimoResultado);
+  const animando = seq.bloqueado;
+  // Un solo envío a la vez: los toques repetidos mientras viaja la jugada se ignoran.
+  const [enviando, setEnviando] = useState(false);
   const [mostrarCountdown, setMostrarCountdown] = useState(false);
   const countdownMostrado = useRef(false);
   const [copiado, setCopiado] = useState(false);
@@ -95,14 +106,14 @@ function Sala1v1Online() {
   // HIDE_ATTACK_DAMAGE no se calcula ni se muestra ningún número de daño antes de atacar.
   const opciones = useMemo(() => {
     if (!room.estado || !room.lado || room.estado.turno !== room.lado) return [];
-    return opcionesDeAtaque(room.estado, abilities, config, FEATURES.HIDE_ATTACK_DAMAGE);
-  }, [room.estado, room.lado, abilities, config]);
+    return opcionesDeAtaque(room.estado, config, FEATURES.HIDE_ATTACK_DAMAGE);
+  }, [room.estado, room.lado, config]);
 
   // El tablero siempre dibuja MI carta a la izquierda ("A" en pantalla): si mi lado real es "B" se invierte.
   const ataqueTablero = useMemo(() => {
     if (!room.ultimoResultado || !room.ultimoAtaque || !room.lado) return null;
     const r = room.ultimoResultado;
-    const t = ataqueParaTablero({ dano: r.danoEsperado, critico: r.critico, efecto: r.efectoAplicado }, room.ultimoAtaque.atacante, room.ultimoAtaque.id);
+    const t = { ...ataqueParaTablero({ dano: r.danoEsperado, critico: r.critico, esquivado: r.esquivado, efecto: r.efectoAplicado }, room.ultimoAtaque.atacante, room.ultimoAtaque.id), estilo: room.ultimoAtaque.estilo };
     if (room.lado === "A") return t;
     const voltear = (l: Lado): Lado => (l === "A" ? "B" : "A");
     return { ...t, atacante: voltear(t.atacante), objetivo: voltear(t.objetivo) };
@@ -203,13 +214,21 @@ function Sala1v1Online() {
   const invocarDisponible = esMiTurno && puedeInvocar(room.estado);
   const atacarDisponible = esMiTurno && puedeAtacar(room.estado);
   const miJugador = room.lado === "A" ? room.estado.jugadorA : room.estado.jugadorB;
+  const vista = seq.estadoMostrado ?? room.estado;
   const candidatos = candidatosDeCambio(miJugador, room.estado.configuracion, roster);
 
-  function onAtacar(habilidadId: string) {
-    room.atacar(habilidadId);
+  async function onAtacar(habilidadId: string) {
+    if (animando || enviando) return;
+    setEnviando(true);
+    try {
+      await room.atacar(habilidadId);
+    } finally {
+      setEnviando(false);
+    }
   }
 
-  if (room.estadoSala === "FINISHED" && room.ganador) {
+  // La pantalla final espera a que termine la animación del último golpe.
+  if (!animando && room.estadoSala === "FINISHED" && room.ganador) {
     const gane = room.ganador === room.lado;
     return (
       <div className="flex h-full flex-col items-center justify-center gap-4 px-4 text-center">
@@ -239,21 +258,16 @@ function Sala1v1Online() {
         </span>
       </div>
 
-      <TurnBanner turno={room.estado.turno} numeroTurno={room.estado.numeroTurno} fase={room.estado.fase} nombreTurno={nombreTurno} />
+      <TurnBanner turno={vista.turno} numeroTurno={vista.numeroTurno} fase={vista.fase} nombreTurno={vista.turno === room.lado ? room.nombrePropio ?? "Tú" : room.nombreRival ?? "Rival"} />
 
       {/* Board siempre dibuja jugadorA a la izquierda: si mi lado real es "B", se
           intercambian los campos para que MI carta quede siempre del lado A en
           pantalla (con eso, sacudirLado="B" apunta siempre al rival, sin importar
           cuál sea mi lado real en la partida). */}
       <Board
-        gameState={
-          room.lado === "A"
-            ? room.estado
-            : { ...room.estado, jugadorA: room.estado.jugadorB, jugadorB: room.estado.jugadorA, turno: room.estado.turno === "A" ? "B" : "A" }
-        }
+        gameState={room.lado === "A" ? vista : { ...vista, jugadorA: vista.jugadorB, jugadorB: vista.jugadorA, turno: vista.turno === "A" ? "B" : "A" }}
         roster={roster}
-        sacudirLado={ataqueTablero && ataqueTablero.tono !== "info" && ataqueTablero.objetivo !== ataqueTablero.atacante ? ataqueTablero.objetivo : null}
-        ataque={ataqueTablero}
+        ataque={ataqueTablero ? { ...ataqueTablero, etapa: seq.etapa } : null}
         ultimaInvocacion={null}
         ultimoDerrotado={
           room.ultimoDerrotado
@@ -262,10 +276,14 @@ function Sala1v1Online() {
         }
       />
 
-      {room.estado.fase !== "terminado" && (invocarDisponible || atacarDisponible) && (
+      {animando && (
+        <div className="mt-auto rounded-xl border border-border-subtle bg-panel/70 py-3 text-center text-sm font-bold tracking-wide text-foreground-muted">⚔️ ¡Combate!</div>
+      )}
+
+      {!animando && room.estado.fase !== "terminado" && (invocarDisponible || atacarDisponible) && (
         <ActionDock titulo={invocarDisponible ? "Invoca tu carta" : "Elige tu ataque"}>
           {invocarDisponible && <ManoInvocar candidatos={candidatos} onElegir={(id) => room.invocar(id)} />}
-          {atacarDisponible && <AttackMenu opciones={opciones} ocultarDano={FEATURES.HIDE_ATTACK_DAMAGE} onAtacar={onAtacar} />}
+          {atacarDisponible && <AttackMenu opciones={opciones} ocultarDano={FEATURES.HIDE_ATTACK_DAMAGE} onAtacar={onAtacar} ocupado={enviando} />}
           {atacarDisponible && FEATURES.CARD_SWAP && puedeCambiar(room.estado) && (
             <button
               type="button"
@@ -289,14 +307,14 @@ function Sala1v1Online() {
         onClose={() => setCambiando(false)}
       />
 
-      {!esMiTurno && room.estado.fase !== "terminado" && (
+      {!animando && !esMiTurno && room.estado.fase !== "terminado" && (
         <p className="text-center text-sm text-foreground-muted">Esperando a {nombreTurno}...</p>
       )}
 
       <AttackAnimation
         resultado={room.ultimoResultado}
-        habilidadNombre={room.ultimoResultado ? abilities.find((a) => a.id === room.ultimoResultado!.habilidadId)?.nombre : undefined}
-        onComplete={room.limpiarUltimoResultado}
+        habilidadNombre={room.ultimoResultado ? nombreDeHabilidad(room.estado.configuracion, room.ultimoResultado.habilidadId) : undefined}
+        etapa={seq.etapa}
       />
 
       <div className="text-center">

@@ -16,6 +16,8 @@ export interface DatosMensaje {
   tier: MatchupTier;
   critico: boolean;
   derrotado: boolean;
+  /** El defensor esquivó (por velocidad). Opcional para no romper llamadas anteriores. */
+  esquivado?: boolean;
   efecto: { tipo: TipoEstado | "curacion"; magnitud: number } | null;
 }
 
@@ -33,8 +35,9 @@ const TEXTO_EFECTO: Record<TipoEstado | "curacion", string> = {
  * Convierte el resultado de un ataque en texto corto para mostrar tras atacar. Es lo ÚNICO que el
  * jugador aprende del ataque (junto con el número flotante): nunca se usa antes de atacar.
  */
-export function mensajeDeAtaque({ dano, tier, critico, derrotado, efecto }: DatosMensaje): MensajeAtaque {
+export function mensajeDeAtaque({ dano, tier, critico, derrotado, esquivado, efecto }: DatosMensaje): MensajeAtaque {
   const detalle = efecto ? TEXTO_EFECTO[efecto.tipo] : undefined;
+  if (esquivado) return { titulo: "¡Lo esquivó!", detalle: "Su velocidad le salvó del golpe", tono: "malo" };
   if (derrotado) return { titulo: "¡K.O.!", detalle, tono: "ko" };
   if (dano <= 0) {
     return efecto ? { titulo: "¡Efecto aplicado!", detalle, tono: "bueno" } : { titulo: "No hizo nada…", tono: "neutro" };
@@ -63,7 +66,8 @@ const EMOJI_EFECTO: Record<TipoEstado | "curacion", string> = {
 };
 
 /** Lo que flota sobre la carta tras el ataque: el daño real (solo se revela DESPUÉS de atacar) o el efecto. */
-export function impactoFlotante({ dano, critico, efecto }: Pick<DatosMensaje, "dano" | "critico" | "efecto">): ImpactoFlotante {
+export function impactoFlotante({ dano, critico, esquivado, efecto }: Pick<DatosMensaje, "dano" | "critico" | "efecto"> & { esquivado?: boolean }): ImpactoFlotante {
+  if (esquivado) return { texto: "💨 ¡Esquivó!", tono: "info", sobre: "rival" };
   if (dano > 0) return { texto: `-${Math.round(dano)}`, tono: critico ? "critico" : "dano", sobre: "rival" };
   if (efecto) {
     const propio = efecto.tipo === "curacion" || efecto.tipo.startsWith("buff_");
@@ -78,15 +82,17 @@ export interface AtaqueTablero {
   objetivo: Lado;
   texto: string;
   tono: ImpactoFlotante["tono"];
+  /** El objetivo esquivó: la animación es de esquiva, no de golpe. */
+  esquivado: boolean;
 }
 
 /** Datos para que el tablero anime el ataque: quién embiste y sobre quién flota el número/efecto. */
 export function ataqueParaTablero(
-  datos: Pick<DatosMensaje, "dano" | "critico" | "efecto">,
+  datos: Pick<DatosMensaje, "dano" | "critico" | "efecto"> & { esquivado?: boolean },
   atacante: Lado,
   id: number,
 ): AtaqueTablero {
   const imp = impactoFlotante(datos);
   const rival: Lado = atacante === "A" ? "B" : "A";
-  return { id, atacante, objetivo: imp.sobre === "rival" ? rival : atacante, texto: imp.texto, tono: imp.tono };
+  return { id, atacante, objetivo: imp.sobre === "rival" ? rival : atacante, texto: imp.texto, tono: imp.tono, esquivado: !!datos.esquivado };
 }

@@ -6,7 +6,7 @@ import { calculateDamage, VARIANZA_DANO } from "@/lib/game-engine/damage";
 import { crearRng, secuenciaRng } from "@/lib/utils/rng";
 import { DEFAULT_ENGINE_CONFIG } from "@/lib/game-engine/config";
 import { MAX_CARTAS_MAZO } from "./types";
-import { crearPartida, invocar, atacar, puedeInvocar, puedeAtacar, verificarGanador } from "./engine";
+import { crearPartida, invocar, atacar, puedeInvocar, puedeAtacar, verificarGanador, habilidadesDeCarta, puedeUsarHabilidad, FORCEJEO_ID } from "./engine";
 
 const ROSTER = REPTILES_BASE.map((base) => buildReptil(base, ABILITIES));
 const dragonBarbudo = ROSTER.find((r) => r.id === "dragon-barbudo")!;
@@ -131,18 +131,14 @@ describe("motor de cartas: combate", () => {
     state = invocar(state, "geco-de-cola-de-hoja", ROSTER);
     state = invocar(state, "cocodrilo-del-nilo", ROSTER);
 
-    const habilidadPoderosa = ABILITIES.find((a) => a.propietarioId === "cocodrilo-del-nilo" && a.categoria === "Fisica")!;
-
-    // Repetimos ataques de B contra A hasta que A se quede sin reptiles.
+    // Cada turno: el ataque de mayor potencia que pueda usar (cada ataque tiene 3 usos) o, si ninguno, el Forcejeo.
     let guard = 0;
-    while (verificarGanador(state) === null && guard < 80) {
-      if (state.turno === "B" && puedeAtacar(state)) {
-        state = atacar(state, habilidadPoderosa.id, ROSTER, ABILITIES, DEFAULT_ENGINE_CONFIG).state;
-      } else if (state.turno === "A" && puedeAtacar(state)) {
-        // A también ataca para no quedar atascado (su único movimiento legal), siempre con su ataque Físico (sin cooldown).
-        const habilidadA = ABILITIES.find((a) => a.propietarioId === "geco-de-cola-de-hoja" && a.categoria === "Fisica")!;
-        state = atacar(state, habilidadA.id, ROSTER, ABILITIES, DEFAULT_ENGINE_CONFIG).state;
-      }
+    while (verificarGanador(state) === null && guard < 120) {
+      const activo = (state.turno === "A" ? state.jugadorA : state.jugadorB).activo!;
+      const mejor = habilidadesDeCarta(state.configuracion, activo)
+        .filter((h) => puedeUsarHabilidad(activo, h))
+        .sort((x, y) => y.potencia - x.potencia)[0];
+      state = atacar(state, mejor?.id ?? FORCEJEO_ID, ROSTER, ABILITIES, DEFAULT_ENGINE_CONFIG).state;
       guard++;
     }
 

@@ -8,6 +8,7 @@ import type { EstadoEquipos, ResultadoAtaqueEquipos } from "@/lib/card-game/engi
 import type { EstadoSala } from "@/lib/supabase/types";
 import { obtenerSessionId } from "@/lib/utils/session";
 import { INTERVALO_PING_MS } from "@/lib/card-game/conexion";
+import { estiloParaAtaque, nuevoIdAtaque, type EstiloAtaque } from "@/lib/card-game/estilo-ataque";
 
 type Conexion = "conectando" | "conectado" | "reconectando";
 type ResultadoSinEstado = Omit<ResultadoAtaqueEquipos, "state">;
@@ -22,7 +23,7 @@ interface EstadoHook {
   estado: EstadoEquipos | null;
   ultimoResultado: ResultadoSinEstado | null;
   /** Quién atacó a quién en el último ataque (+ contador para re-disparar animaciones). */
-  ultimoAtaque: { id: number; atacanteIdx: number; objetivoIdx: number } | null;
+  ultimoAtaque: { id: number; atacanteIdx: number; objetivoIdx: number; estilo: EstiloAtaque; antes: EstadoEquipos } | null;
   /** Carta derrotada en el último ataque: desaparece de `activo` en el mismo update, así que se guarda para mostrarla un instante. */
   ultimoDerrotado: { idx: number; reptilId: string } | null;
   estadoSala: EstadoSala | null;
@@ -38,9 +39,22 @@ interface EstadoHook {
 
 type Accion = { tipo: "invocar"; reptilId: string } | { tipo: "cambiar"; reptilId: string } | { tipo: "atacar"; habilidadId: string; objetivo: number };
 
-function derivarAtaque(previo: EstadoEquipos | null, r: ResultadoSinEstado | null, idPrevio: number) {
+function derivarAtaque(previo: EstadoEquipos | null, r: ResultadoSinEstado | null) {
   if (!previo || !r) return null;
-  return { id: idPrevio + 1, atacanteIdx: previo.turnoIdx, objetivoIdx: r.objetivoIdx };
+  const activo = previo.jugadores[previo.turnoIdx]?.activo;
+  const categoria = previo.configuracion.habilidades[r.habilidadId]?.categoria ?? "Fisica";
+  return {
+    id: nuevoIdAtaque(),
+    atacanteIdx: previo.turnoIdx,
+    objetivoIdx: r.objetivoIdx,
+    estilo: estiloParaAtaque(previo.configuracion, activo?.reptilId ?? "", categoria, r.critico),
+    antes: previo,
+  };
+}
+
+/** El servidor manda cada jugada dos veces al que la hizo (respuesta HTTP + difusión): la segunda ya está aplicada. */
+function yaAplicado(actual: EstadoEquipos | null, nuevo: EstadoEquipos | null | undefined): boolean {
+  return !!actual && !!nuevo && nuevo.numeroTurno <= actual.numeroTurno && nuevo.fase === actual.fase;
 }
 
 function derivarDerrotado(previo: EstadoEquipos | null, r: ResultadoSinEstado | null) {
@@ -101,17 +115,20 @@ export function useGameRoomEquipos(codigo: string | null, viewToken: string | nu
     const canal = supabase.channel(canalDeVista(viewToken));
     canal
       .on("broadcast", { event: "estado" }, ({ payload }) => {
-        setS((p) => ({
-          ...p,
-          // Un broadcast de lobby trae estado null: se conserva el anterior solo si seguimos esperando.
-          estado: payload.estado ?? (payload.estadoSala === "WAITING" ? null : p.estado),
-          ultimoResultado: payload.ultimoResultado,
-          ultimoAtaque: derivarAtaque(p.estado, payload.ultimoResultado, p.ultimoAtaque?.id ?? 0) ?? p.ultimoAtaque,
-          ultimoDerrotado: derivarDerrotado(p.estado, payload.ultimoResultado),
-          estadoSala: payload.estadoSala ?? p.estadoSala,
-          ganador: payload.ganador ?? p.ganador,
-          lobby: payload.lobby ?? p.lobby,
-        }));
+        setS((p) => {
+          if (yaAplicado(p.estado, payload.estado) && (payload.estadoSala ?? p.estadoSala) === p.estadoSala) return p;
+          return {
+            ...p,
+            // Un broadcast de lobby trae estado null: se conserva el anterior solo si seguimos esperando.
+            estado: payload.estado ?? (payload.estadoSala === "WAITING" ? null : p.estado),
+            ultimoResultado: payload.ultimoResultado,
+            ultimoAtaque: derivarAtaque(p.estado, payload.ultimoResultado) ?? p.ultimoAtaque,
+            ultimoDerrotado: derivarDerrotado(p.estado, payload.ultimoResultado),
+            estadoSala: payload.estadoSala ?? p.estadoSala,
+            ganador: payload.ganador ?? p.ganador,
+            lobby: payload.lobby ?? p.lobby,
+          };
+        });
         // En cuanto empieza la partida, se trae la vista completa (idx/lado propios).
         if (payload.estadoSala === "IN_PROGRESS") refrescar();
       })
@@ -177,12 +194,13 @@ export function useGameRoomEquipos(codigo: string | null, viewToken: string | nu
         return;
       }
       setS((p) => {
+        if (yaAplicado(p.estado, json.estado)) return p;
         const r: ResultadoSinEstado | null = json.ultimoResultado;
         return {
           ...p,
           estado: json.estado,
           ultimoResultado: r,
-          ultimoAtaque: derivarAtaque(p.estado, r, p.ultimoAtaque?.id ?? 0) ?? p.ultimoAtaque,
+          ultimoAtaque: derivarAtaque(p.estado, r) ?? p.ultimoAtaque,
           ultimoDerrotado: derivarDerrotado(p.estado, r),
           estadoSala: json.estado?.fase === "terminado" ? "FINISHED" : p.estadoSala,
           ganador: json.estado?.ganador ?? p.ganador,
@@ -198,7 +216,7 @@ export function useGameRoomEquipos(codigo: string | null, viewToken: string | nu
     invocar: (reptilId: string) => ejecutar({ tipo: "invocar", reptilId }),
     cambiar: (reptilId: string) => ejecutar({ tipo: "cambiar", reptilId }),
     atacar: (habilidadId: string, objetivo: number) => ejecutar({ tipo: "atacar", habilidadId, objetivo }),
-    limpiarUltimoResultado: () => setS((p) => ({ ...p, ultimoResultado: null, ultimoDerrotado: null })),
+    limpiarUltimoResultado: () => setS((p) => ({ ...p, ultimoResultado: null, ultimoDerrotado: null, ultimoAtaque: null })),
     limpiarError: () => setS((p) => ({ ...p, error: null })),
     refrescar,
   };

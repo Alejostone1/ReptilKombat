@@ -3,15 +3,16 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { motion, AnimatePresence } from "framer-motion";
+import { useSecuenciaCombate } from "@/lib/hooks/useSecuenciaCombate";
 import { useRoster } from "@/lib/hooks/useRoster";
 import { useEngineData } from "@/lib/hooks/useEngineData";
 import { useGameStore } from "@/lib/store/game-store";
-import { puedeInvocar, puedeAtacar, puedeCambiar, configuracionARosterYHabilidades } from "@/lib/card-game/engine";
+import { puedeInvocar, puedeAtacar, puedeCambiar, nombreDeHabilidad, configuracionARosterYHabilidades } from "@/lib/card-game/engine";
 import { decidirAccionIA } from "@/lib/card-game/ai";
 import { opcionesDeAtaque } from "@/lib/card-game/opciones-ataque";
 import { ataqueParaTablero } from "@/lib/card-game/mensajes";
 import { FEATURES } from "@/config/features";
-import type { Lado } from "@/lib/card-game/types";
+import type { GameState, Lado } from "@/lib/card-game/types";
 import { Board } from "@/components/cards/Board";
 import { TurnBanner } from "@/components/cards/TurnBanner";
 import { AttackAnimation } from "@/components/cards/AttackAnimation";
@@ -25,16 +26,23 @@ export default function MesaPage() {
   const router = useRouter();
   const { roster, abilities } = useRoster();
   const { config } = useEngineData();
-  const { state, ultimoResultado, ultimoDerrotado, ultimoAtaque, pantallaTransicion, modoIA, ladoIA, personalidadIA, invocar, atacar, cambiar, confirmarTurno, reiniciar } =
+  const { state, ultimoResultado, ultimoDerrotado, ultimoAtaque, pantallaTransicion, modoIA, ladoIA, personalidadIA, invocar, atacar, cambiar, confirmarTurno, reiniciar, limpiarUltimoResultado } =
     useGameStore();
-  const [sacudirLado, setSacudirLado] = useState<Lado | null>(null);
   const [ultimaInvocacion, setUltimaInvocacion] = useState<Lado | null>(null);
   const [cambiando, setCambiando] = useState(false);
   const iaJugando = useRef(false);
 
+  // Secuencia de combate: hasta el impacto se sigue mostrando el estado de ANTES (la vida no se adelanta).
+  const ataqueEnCurso = useMemo(() => (ultimoAtaque ? { id: ultimoAtaque.id, estilo: ultimoAtaque.estilo, antes: ultimoAtaque.antes } : null), [ultimoAtaque]);
+  const seq = useSecuenciaCombate<GameState>(ataqueEnCurso, state, limpiarUltimoResultado);
+  const animando = seq.bloqueado;
+  const vista = seq.estadoMostrado;
+
   // Turno de la IA: se salta la pantalla de "pasa el dispositivo" y juega sola tras una breve pausa.
   useEffect(() => {
     if (!modoIA || !ladoIA || !state || state.turno !== ladoIA || state.fase === "terminado") return;
+    // La IA espera a que termine la animación del ataque anterior.
+    if (animando) return;
     if (pantallaTransicion) {
       confirmarTurno();
       return;
@@ -50,30 +58,33 @@ export default function MesaPage() {
         setUltimaInvocacion(ladoIA);
         setTimeout(() => setUltimaInvocacion(null), 700);
       } else if (accion?.tipo === "atacar") {
-        const ladoDefensor: Lado = ladoIA === "A" ? "B" : "A";
         atacar(accion.habilidadId, roster, abilities, config);
-        setSacudirLado(ladoDefensor);
-        setTimeout(() => setSacudirLado(null), 500);
       }
       iaJugando.current = false;
     }, 900);
-    return () => clearTimeout(t);
-  }, [modoIA, ladoIA, personalidadIA, state, pantallaTransicion, roster, abilities, config, invocar, atacar, confirmarTurno]);
+    return () => {
+      clearTimeout(t);
+      iaJugando.current = false;
+    };
+  }, [modoIA, ladoIA, personalidadIA, state, pantallaTransicion, animando, roster, abilities, config, invocar, atacar, confirmarTurno]);
 
   // Opciones de ataque del turno. Con HIDE_ATTACK_DAMAGE no se calcula ni se muestra ningún número de daño.
   const opciones = useMemo(
-    () => (state ? opcionesDeAtaque(state, abilities, config, FEATURES.HIDE_ATTACK_DAMAGE) : []),
-    [state, abilities, config],
+    () => (state ? opcionesDeAtaque(state, config, FEATURES.HIDE_ATTACK_DAMAGE) : []),
+    [state, config],
   );
 
   const ataqueTablero = useMemo(
     () =>
       ultimoResultado && ultimoAtaque
-        ? ataqueParaTablero(
-            { dano: ultimoResultado.danoEsperado, critico: ultimoResultado.critico, efecto: ultimoResultado.efectoAplicado },
-            ultimoAtaque.atacante,
-            ultimoAtaque.id,
-          )
+        ? {
+            ...ataqueParaTablero(
+              { dano: ultimoResultado.danoEsperado, critico: ultimoResultado.critico, esquivado: ultimoResultado.esquivado, efecto: ultimoResultado.efectoAplicado },
+              ultimoAtaque.atacante,
+              ultimoAtaque.id,
+            ),
+            estilo: ultimoAtaque.estilo,
+          }
         : null,
     [ultimoResultado, ultimoAtaque],
   );
@@ -111,11 +122,13 @@ export default function MesaPage() {
   }
 
   function onAtacar(habilidadId: string) {
-    if (!state) return;
-    const ladoDefensor: Lado = state.turno === "A" ? "B" : "A";
-    atacar(habilidadId, roster, abilities, config);
-    setSacudirLado(ladoDefensor);
-    setTimeout(() => setSacudirLado(null), 500);
+    // Un solo ataque a la vez: con una animación en curso los toques extra se ignoran.
+    if (!state || animando) return;
+    try {
+      atacar(habilidadId, roster, abilities, config);
+    } catch {
+      /* el motor rechazó la jugada (usos agotados, turno ya cambiado…): no pasa nada, no se ejecuta dos veces */
+    }
   }
 
   return (
@@ -127,22 +140,25 @@ export default function MesaPage() {
         </Button>
       </div>
 
-      <TurnBanner turno={state.turno} numeroTurno={state.numeroTurno} fase={state.fase} nombreTurno={nombreTurno} />
+      <TurnBanner turno={(vista ?? state).turno} numeroTurno={(vista ?? state).numeroTurno} fase={(vista ?? state).fase} nombreTurno={(vista ?? state).turno === "A" ? (vista ?? state).jugadorA.nombre : (vista ?? state).jugadorB.nombre} />
 
       <Board
-        gameState={state}
+        gameState={vista ?? state}
         roster={roster}
-        sacudirLado={sacudirLado}
         ultimaInvocacion={ultimaInvocacion}
         ultimoDerrotado={ultimoDerrotado}
-        ataque={ataqueTablero}
+        ataque={ataqueTablero ? { ...ataqueTablero, etapa: seq.etapa } : null}
       />
 
       {esTurnoDeLaIA && state.fase !== "terminado" && (
         <p className="animate-pulse text-center text-sm text-foreground-muted">🤖 {nombreTurno} está pensando...</p>
       )}
 
-      {!esTurnoDeLaIA && state.fase !== "terminado" && (
+      {animando && (
+        <div className="mt-auto rounded-xl border border-border-subtle bg-panel/70 py-3 text-center text-sm font-bold tracking-wide text-foreground-muted">⚔️ ¡Combate!</div>
+      )}
+
+      {!animando && !esTurnoDeLaIA && state.fase !== "terminado" && (
         <ActionDock titulo={invocarDisponible ? `Invoca una carta — ${nombreTurno}` : `Elige tu ataque — ${nombreTurno}`}>
           {invocarDisponible && <ManoInvocar candidatos={candidatos} onElegir={onInvocar} />}
           {atacarDisponible && <AttackMenu opciones={opciones} ocultarDano={FEATURES.HIDE_ATTACK_DAMAGE} onAtacar={onAtacar} />}
@@ -161,7 +177,7 @@ export default function MesaPage() {
 
       <SwapSheet abierto={cambiando} candidatos={candidatos} onElegir={onCambiar} onClose={() => setCambiando(false)} />
 
-      {state.fase === "terminado" && (
+      {!animando && state.fase === "terminado" && (
         <Card className="border-reptile-green/50 bg-reptile-green/10 p-8 text-center">
           <p className="text-3xl">🏆</p>
           <p className="mt-2 text-xl font-bold text-foreground">
@@ -181,12 +197,12 @@ export default function MesaPage() {
 
       <AttackAnimation
         resultado={ultimoResultado}
-        habilidadNombre={ultimoResultado ? abilities.find((a) => a.id === ultimoResultado.habilidadId)?.nombre : undefined}
-        onComplete={() => useGameStore.setState({ ultimoResultado: null, ultimoDerrotado: null })}
+        habilidadNombre={ultimoResultado ? nombreDeHabilidad(state.configuracion, ultimoResultado.habilidadId) : undefined}
+        etapa={seq.etapa}
       />
 
       <AnimatePresence>
-        {pantallaTransicion && !ultimoResultado && state.fase !== "terminado" && (
+        {pantallaTransicion && !ultimoResultado && !animando && state.fase !== "terminado" && (
           <motion.div
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}

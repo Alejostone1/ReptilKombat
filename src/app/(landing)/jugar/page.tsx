@@ -68,7 +68,7 @@ export default function JugarLobbyPage() {
         <p className="text-xs uppercase tracking-widest text-foreground-muted">Bienvenido a</p>
         <h1 className="text-3xl font-black text-foreground">⚔️ LA ARENA</h1>
         <p className="mx-auto mt-2 max-w-md text-sm text-foreground-muted">
-          Elige cómo quieres batallar. Todo el combate corre sobre el mismo motor de balance del resto de la app.
+          Elige cómo quieres batallar: solo, con amigos o por equipos. ¡Cada ataque cuenta!
         </p>
       </div>
 

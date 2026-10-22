@@ -2,7 +2,10 @@
 
 import type { Reptil } from "@/types/reptile";
 import type { GameState, Lado } from "@/lib/card-game/types";
+import { motion, useReducedMotion } from "framer-motion";
 import { GameCard, type TonoImpacto } from "./GameCard";
+import type { FxCarta } from "./pose-combate";
+import { resultadoRevelado, type Etapa, type EstiloAtaque } from "@/lib/card-game/estilo-ataque";
 import { AFFINITY_META } from "@/types/affinity";
 import { bancaDe } from "@/lib/card-game/engine";
 import { cn } from "@/lib/utils";
@@ -10,12 +13,14 @@ import { cn } from "@/lib/utils";
 interface BoardProps {
   gameState: GameState;
   roster: Reptil[];
-  sacudirLado: Lado | null;
   ultimaInvocacion: Lado | null;
   /** Reptil que acaba de caer a 0 HP: se muestra un instante en su estado "derrotada" antes de dejar el slot vacío. */
   ultimoDerrotado?: { lado: Lado; reptilId: string } | null;
-  /** Último ataque, para animar: el atacante embiste y sobre `objetivo` flota `texto` (daño, curación, efecto). */
-  ataque?: { id: number; atacante: Lado; objetivo: Lado; texto: string; tono: TonoImpacto } | null;
+  /**
+   * Ataque en curso, para animar: quién ataca, sobre quién cae, en qué etapa de la secuencia va, con qué estilo
+   * (tipo del animal, peso) y el texto que flota (daño, curación, efecto) — que solo se muestra desde el impacto.
+   */
+  ataque?: { id: number; atacante: Lado; objetivo: Lado; texto: string; tono: TonoImpacto; esquivado?: boolean; etapa: Etapa | null; estilo: EstiloAtaque } | null;
 }
 
 interface FichaBanca {
@@ -86,14 +91,65 @@ function fichasBanca(gameState: GameState, lado: Lado): FichaBanca[] {
 
 const EMPTY_SLOT_CLASSES = "flex aspect-[3/4] w-[40vw] max-w-[10.5rem] items-center justify-center rounded-xl border-2 border-dashed border-border-subtle p-3 text-center text-xs text-foreground-muted sm:w-48 sm:max-w-none md:w-56";
 
-export function Board({ gameState, roster, sacudirLado, ultimaInvocacion, ultimoDerrotado, ataque }: BoardProps) {
-  const reptilA = gameState.jugadorA.activo ? roster.find((r) => r.id === gameState.jugadorA.activo!.reptilId) : null;
-  const reptilB = gameState.jugadorB.activo ? roster.find((r) => r.id === gameState.jugadorB.activo!.reptilId) : null;
-  const derrotadoA = !reptilA && ultimoDerrotado?.lado === "A" ? roster.find((r) => r.id === ultimoDerrotado.reptilId) : null;
-  const derrotadoB = !reptilB && ultimoDerrotado?.lado === "B" ? roster.find((r) => r.id === ultimoDerrotado.reptilId) : null;
+export function Board({ gameState, roster, ultimaInvocacion, ultimoDerrotado, ataque }: BoardProps) {
+  const reducirMovimiento = useReducedMotion();
+  const etapa = ataque?.etapa ?? null;
+  const revelado = resultadoRevelado(etapa);
+
+  /** Animación de combate que le toca a la carta de cada lado (null = sin ataque en curso). */
+  function fxDe(lado: Lado): FxCarta | null {
+    if (!ataque || !etapa) return null;
+    const esAtacante = ataque.atacante === lado;
+    const esObjetivo = ataque.objetivo === lado;
+    if (!esAtacante && !esObjetivo) return null;
+    return {
+      id: ataque.id,
+      etapa,
+      rol: esAtacante && esObjetivo ? "ambos" : esAtacante ? "atacante" : "objetivo",
+      dx: ataque.atacante === "A" ? 1 : -1,
+      dy: 0,
+      estilo: ataque.estilo,
+      esquivado: ataque.esquivado,
+    };
+  }
+
+  // El número de daño y la vida nueva solo se muestran desde el impacto.
+  const impactoDe = (lado: Lado) => (ataque && revelado && etapa && ataque.objetivo === lado ? { id: ataque.id, texto: ataque.texto, tono: ataque.tono } : null);
+
+  function carta(lado: Lado) {
+    const j = lado === "A" ? gameState.jugadorA : gameState.jugadorB;
+    const reptil = j.activo ? roster.find((r) => r.id === j.activo!.reptilId) : null;
+    const caido = !reptil && ultimoDerrotado?.lado === lado ? roster.find((r) => r.id === ultimoDerrotado.reptilId) : null;
+    if (reptil) {
+      return (
+        <GameCard
+          reptil={reptil}
+          hpActual={j.activo?.hpActual}
+          energiaActual={j.activo?.energiaActual}
+          energiaMax={gameState.configuracion.reptiles[reptil.id]?.energiaMax}
+          size="lg"
+          animarEntrada={ultimaInvocacion === lado}
+          estados={j.activo?.estados}
+          aturdidoTurnos={j.activo?.aturdidoTurnos}
+          turnoActivo={gameState.turno === lado && gameState.fase !== "terminado"}
+          fx={fxDe(lado)}
+          impacto={impactoDe(lado)}
+        />
+      );
+    }
+    if (caido) return <GameCard reptil={caido} hpActual={0} size="lg" fx={fxDe(lado)} impacto={impactoDe(lado)} />;
+    return <div className={EMPTY_SLOT_CLASSES}>Sin reptil activo</div>;
+  }
+
+  // Temblor de cámara en el impacto: todo el tablero se sacude según el peso del golpe.
+  const t = ataque && etapa === "impacto" && !reducirMovimiento ? ataque.estilo.temblor : 0;
 
   return (
-    <div className="rounded-2xl border border-border-subtle bg-panel/60 p-3 sm:p-6">
+    <motion.div
+      className="relative rounded-2xl border border-border-subtle bg-panel/60 p-3 sm:p-6"
+      animate={t ? { x: [0, -t, t, -t * 0.6, t * 0.6, -t * 0.25, 0], y: [0, t * 0.3, -t * 0.3, 0] } : { x: 0, y: 0 }}
+      transition={{ duration: t ? ataque!.estilo.duraciones.impacto / 1000 : 0.2, ease: "easeOut" }}
+    >
       <div className="mb-3 flex items-center justify-between gap-2 sm:mb-4">
         <LadoInfo
           nombre={gameState.jugadorA.nombre}
@@ -112,55 +168,29 @@ export function Board({ gameState, roster, sacudirLado, ultimaInvocacion, ultimo
         />
       </div>
 
-      <div className="flex items-center justify-center gap-2 py-2 sm:gap-6 sm:py-6 md:gap-16">
-        <div className="flex flex-col items-center gap-2">
-          {reptilA ? (
-            <GameCard
-              reptil={reptilA}
-              hpActual={gameState.jugadorA.activo?.hpActual}
-              energiaActual={gameState.jugadorA.activo?.energiaActual}
-              energiaMax={gameState.configuracion.reptiles[reptilA.id]?.energiaMax}
-              size="lg"
-              sacudir={sacudirLado === "A"}
-              animarEntrada={ultimaInvocacion === "A"}
-              estados={gameState.jugadorA.activo?.estados}
-              aturdidoTurnos={gameState.jugadorA.activo?.aturdidoTurnos}
-              turnoActivo={gameState.turno === "A" && gameState.fase !== "terminado"}
-              embestida={ataque?.atacante === "A" ? 1 : null}
-              impacto={ataque?.objetivo === "A" ? { id: ataque.id, texto: ataque.texto, tono: ataque.tono } : null}
-            />
-          ) : derrotadoA ? (
-            <GameCard reptil={derrotadoA} hpActual={0} size="lg" />
-          ) : (
-            <div className={EMPTY_SLOT_CLASSES}>Sin reptil activo</div>
-          )}
-        </div>
+      <div className="relative flex items-center justify-center gap-2 py-2 sm:gap-6 sm:py-6 md:gap-16">
+        <div className="flex flex-col items-center gap-2">{carta("A")}</div>
 
         <span className="text-lg font-black italic text-foreground-muted sm:text-2xl">VS</span>
 
-        <div className="flex flex-col items-center gap-2">
-          {reptilB ? (
-            <GameCard
-              reptil={reptilB}
-              hpActual={gameState.jugadorB.activo?.hpActual}
-              energiaActual={gameState.jugadorB.activo?.energiaActual}
-              energiaMax={gameState.configuracion.reptiles[reptilB.id]?.energiaMax}
-              size="lg"
-              sacudir={sacudirLado === "B"}
-              animarEntrada={ultimaInvocacion === "B"}
-              estados={gameState.jugadorB.activo?.estados}
-              aturdidoTurnos={gameState.jugadorB.activo?.aturdidoTurnos}
-              turnoActivo={gameState.turno === "B" && gameState.fase !== "terminado"}
-              embestida={ataque?.atacante === "B" ? -1 : null}
-              impacto={ataque?.objetivo === "B" ? { id: ataque.id, texto: ataque.texto, tono: ataque.tono } : null}
-            />
-          ) : derrotadoB ? (
-            <GameCard reptil={derrotadoB} hpActual={0} size="lg" />
-          ) : (
-            <div className={EMPTY_SLOT_CLASSES}>Sin reptil activo</div>
-          )}
-        </div>
+        <div className="flex flex-col items-center gap-2">{carta("B")}</div>
+
+        {/* Esfera de energía de los ataques especiales: viaja del atacante al rival durante la ejecución. */}
+        {ataque && etapa === "ejecucion" && ataque.estilo.trayecto === "proyectil" && ataque.atacante !== ataque.objetivo && (
+          <motion.span
+            key={`orbe-${ataque.id}`}
+            aria-hidden
+            className="pointer-events-none absolute top-1/2 z-30 -mt-4 h-8 w-8 rounded-full"
+            style={{
+              background: `radial-gradient(circle, #fff 0%, ${ataque.estilo.color} 55%, transparent 72%)`,
+              boxShadow: `0 0 20px 6px ${ataque.estilo.color}`,
+            }}
+            initial={{ left: ataque.atacante === "A" ? "26%" : "74%", scale: 0.5, opacity: 0.4 }}
+            animate={{ left: ataque.atacante === "A" ? "74%" : "26%", scale: [0.5, 1.2, 1], opacity: 1 }}
+            transition={{ duration: ataque.estilo.duraciones.ejecucion / 1000, ease: [0.4, 0, 1, 0.7] }}
+          />
+        )}
       </div>
-    </div>
+    </motion.div>
   );
 }

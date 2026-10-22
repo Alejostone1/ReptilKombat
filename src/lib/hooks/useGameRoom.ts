@@ -8,6 +8,7 @@ import type { ResultadoAtaque } from "@/lib/card-game/engine";
 import type { EstadoSala } from "@/lib/supabase/types";
 import { obtenerSessionId } from "@/lib/utils/session";
 import { INTERVALO_PING_MS } from "@/lib/card-game/conexion";
+import { estiloParaAtaque, nuevoIdAtaque, type EstiloAtaque } from "@/lib/card-game/estilo-ataque";
 
 type Conexion = "conectando" | "conectado" | "reconectando";
 
@@ -17,7 +18,7 @@ interface RoomHookState {
   /** Igual que en game-store: el defensor derrotado desaparece de `estado.activo` en el mismo update, así que se captura aparte para mostrarlo un instante. */
   ultimoDerrotado: { lado: Lado; reptilId: string } | null;
   /** Quién atacó (según el turno del estado previo) + contador, para animar tanto mis ataques como los del rival. */
-  ultimoAtaque: { id: number; atacante: Lado } | null;
+  ultimoAtaque: { id: number; atacante: Lado; estilo: EstiloAtaque; antes: GameState } | null;
   estadoSala: EstadoSala | null;
   lado: Lado | null;
   nombrePropio: string | null;
@@ -29,13 +30,29 @@ interface RoomHookState {
   rivalSinSenal: { segundos: number; recibidoEn: number } | null;
 }
 
-function derivarUltimoAtaque(
+/**
+ * Datos para animar un ataque recién llegado: quién atacó (el turno del estado previo), con qué estilo y el
+ * estado de ANTES (se muestra hasta el impacto). Sirve igual para mis ataques y para los del rival.
+ */
+export function derivarUltimoAtaque(
   estadoPrevio: GameState | null,
   ultimoResultado: Omit<ResultadoAtaque, "state"> | null,
-  idPrevio: number,
-): { id: number; atacante: Lado } | null {
+): { id: number; atacante: Lado; estilo: EstiloAtaque; antes: GameState } | null {
   if (!estadoPrevio || !ultimoResultado) return null;
-  return { id: idPrevio + 1, atacante: estadoPrevio.turno };
+  const atacante = estadoPrevio.turno;
+  const activo = (atacante === "A" ? estadoPrevio.jugadorA : estadoPrevio.jugadorB).activo;
+  const categoria = estadoPrevio.configuracion.habilidades[ultimoResultado.habilidadId]?.categoria ?? "Fisica";
+  return {
+    id: nuevoIdAtaque(),
+    atacante,
+    estilo: estiloParaAtaque(estadoPrevio.configuracion, activo?.reptilId ?? "", categoria, ultimoResultado.critico),
+    antes: estadoPrevio,
+  };
+}
+
+/** El servidor manda cada jugada dos veces al que la hizo (respuesta HTTP + difusión): la segunda ya está aplicada. */
+function yaAplicado(actual: GameState | null, nuevo: GameState | null | undefined): boolean {
+  return !!actual && !!nuevo && nuevo.numeroTurno <= actual.numeroTurno && nuevo.fase === actual.fase;
 }
 
 /** Antes de reemplazar `estado`, calcula quién fue derrotado (si aplica) usando el turno del estado previo. */
@@ -100,16 +117,19 @@ export function useGameRoom(codigo: string | null, viewToken: string | null) {
 
     channel
       .on("broadcast", { event: "estado" }, ({ payload }) => {
-        setEstado((s) => ({
-          ...s,
-          estado: payload.estado,
-          ultimoResultado: payload.ultimoResultado,
-          ultimoDerrotado: derivarUltimoDerrotado(s.estado, payload.ultimoResultado),
-          ultimoAtaque: derivarUltimoAtaque(s.estado, payload.ultimoResultado, s.ultimoAtaque?.id ?? 0) ?? s.ultimoAtaque,
-          estadoSala: payload.estadoSala ?? s.estadoSala,
-          nombreRival: payload.nombreRival ?? s.nombreRival,
-          ganador: payload.ganador ?? s.ganador,
-        }));
+        setEstado((s) => {
+          if (yaAplicado(s.estado, payload.estado) && (payload.estadoSala ?? s.estadoSala) === s.estadoSala) return s;
+          return {
+            ...s,
+            estado: payload.estado,
+            ultimoResultado: payload.ultimoResultado,
+            ultimoDerrotado: derivarUltimoDerrotado(s.estado, payload.ultimoResultado),
+            ultimoAtaque: derivarUltimoAtaque(s.estado, payload.ultimoResultado) ?? s.ultimoAtaque,
+            estadoSala: payload.estadoSala ?? s.estadoSala,
+            nombreRival: payload.nombreRival ?? s.nombreRival,
+            ganador: payload.ganador ?? s.ganador,
+          };
+        });
       })
       .subscribe((status) => {
         if (status === "SUBSCRIBED") {
@@ -182,10 +202,12 @@ export function useGameRoom(codigo: string | null, viewToken: string | null) {
         return;
       }
       setEstado((s) => {
+        // Si la difusión ya trajo esta misma jugada, no se repite (ni la animación ni el consumo visual).
+        if (yaAplicado(s.estado, json.estado)) return s;
         const r: Omit<ResultadoAtaque, "state"> | null = json.ultimoResultado;
         return {
         ...s,
-        ultimoAtaque: derivarUltimoAtaque(s.estado, r, s.ultimoAtaque?.id ?? 0) ?? s.ultimoAtaque,
+        ultimoAtaque: derivarUltimoAtaque(s.estado, r) ?? s.ultimoAtaque,
         estado: json.estado,
         ultimoResultado: json.ultimoResultado,
         ultimoDerrotado: derivarUltimoDerrotado(s.estado, json.ultimoResultado),
@@ -204,7 +226,7 @@ export function useGameRoom(codigo: string | null, viewToken: string | null) {
     atacar: (habilidadId: string) => ejecutarAccion({ tipo: "atacar", habilidadId }),
     cambiar: (reptilId: string) => ejecutarAccion({ tipo: "cambiar", reptilId }),
     limpiarUltimoDerrotado: () => setEstado((s) => ({ ...s, ultimoDerrotado: null })),
-    limpiarUltimoResultado: () => setEstado((s) => ({ ...s, ultimoResultado: null, ultimoDerrotado: null })),
+    limpiarUltimoResultado: () => setEstado((s) => ({ ...s, ultimoResultado: null, ultimoDerrotado: null, ultimoAtaque: null })),
     refrescar,
   };
 }
