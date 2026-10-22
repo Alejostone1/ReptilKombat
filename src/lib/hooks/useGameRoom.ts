@@ -7,6 +7,8 @@ import type { GameState, Lado } from "@/lib/card-game/types";
 import type { ResultadoAtaque } from "@/lib/card-game/engine";
 import type { EstadoSala } from "@/lib/supabase/types";
 import { obtenerSessionId } from "@/lib/utils/session";
+import { nivelDeGolpe, recordarAtaque, type MemoriaAtaques } from "@/lib/card-game/memoria-ataques";
+import { DEFAULT_ENGINE_CONFIG } from "@/lib/game-engine/config";
 
 type Conexion = "conectando" | "conectado" | "reconectando";
 
@@ -15,6 +17,10 @@ interface RoomHookState {
   ultimoResultado: Omit<ResultadoAtaque, "state"> | null;
   /** Igual que en game-store: el defensor derrotado desaparece de `estado.activo` en el mismo update, así que se captura aparte para mostrarlo un instante. */
   ultimoDerrotado: { lado: Lado; reptilId: string } | null;
+  /** Quién atacó (según el turno del estado previo) + contador, para animar tanto mis ataques como los del rival. */
+  ultimoAtaque: { id: number; atacante: Lado } | null;
+  /** Lo que aprendí de MIS ataques en esta partida (solo cliente; nunca se envía al servidor). */
+  memoria: MemoriaAtaques;
   estadoSala: EstadoSala | null;
   lado: Lado | null;
   nombrePropio: string | null;
@@ -22,6 +28,15 @@ interface RoomHookState {
   ganador: Lado | null;
   conexion: Conexion;
   error: string | null;
+}
+
+function derivarUltimoAtaque(
+  estadoPrevio: GameState | null,
+  ultimoResultado: Omit<ResultadoAtaque, "state"> | null,
+  idPrevio: number,
+): { id: number; atacante: Lado } | null {
+  if (!estadoPrevio || !ultimoResultado) return null;
+  return { id: idPrevio + 1, atacante: estadoPrevio.turno };
 }
 
 /** Antes de reemplazar `estado`, calcula quién fue derrotado (si aplica) usando el turno del estado previo. */
@@ -40,6 +55,8 @@ export function useGameRoom(codigo: string | null, viewToken: string | null) {
     estado: null,
     ultimoResultado: null,
     ultimoDerrotado: null,
+    ultimoAtaque: null,
+    memoria: {},
     estadoSala: null,
     lado: null,
     nombrePropio: null,
@@ -89,6 +106,7 @@ export function useGameRoom(codigo: string | null, viewToken: string | null) {
           estado: payload.estado,
           ultimoResultado: payload.ultimoResultado,
           ultimoDerrotado: derivarUltimoDerrotado(s.estado, payload.ultimoResultado),
+          ultimoAtaque: derivarUltimoAtaque(s.estado, payload.ultimoResultado, s.ultimoAtaque?.id ?? 0) ?? s.ultimoAtaque,
           estadoSala: payload.estadoSala ?? s.estadoSala,
           nombreRival: payload.nombreRival ?? s.nombreRival,
           ganador: payload.ganador ?? s.ganador,
@@ -126,15 +144,26 @@ export function useGameRoom(codigo: string | null, viewToken: string | null) {
         setEstado((s) => ({ ...s, error: json.error ?? "Acción inválida." }));
         return;
       }
-      setEstado((s) => ({
+      setEstado((s) => {
+        const r: Omit<ResultadoAtaque, "state"> | null = json.ultimoResultado;
+        let memoria = s.memoria;
+        if (accion.tipo === "atacar" && r && s.estado && s.lado) {
+          const rival = s.lado === "A" ? s.estado.jugadorB : s.estado.jugadorA;
+          const hpMax = rival.activo ? (s.estado.configuracion.reptiles[rival.activo.reptilId]?.hp ?? 0) : 0;
+          memoria = recordarAtaque(memoria, accion.habilidadId, nivelDeGolpe(r.danoEsperado, r.critico, DEFAULT_ENGINE_CONFIG.criticoMultiplicador, hpMax));
+        }
+        return {
         ...s,
+        memoria,
+        ultimoAtaque: derivarUltimoAtaque(s.estado, r, s.ultimoAtaque?.id ?? 0) ?? s.ultimoAtaque,
         estado: json.estado,
         ultimoResultado: json.ultimoResultado,
         ultimoDerrotado: derivarUltimoDerrotado(s.estado, json.ultimoResultado),
         estadoSala: json.estado?.fase === "terminado" ? "FINISHED" : s.estadoSala,
         ganador: json.estado?.ganador ?? s.ganador,
         error: null,
-      }));
+        };
+      });
     },
     [codigo],
   );
@@ -144,6 +173,7 @@ export function useGameRoom(codigo: string | null, viewToken: string | null) {
     invocar: (reptilId: string) => ejecutarAccion({ tipo: "invocar", reptilId }),
     atacar: (habilidadId: string) => ejecutarAccion({ tipo: "atacar", habilidadId }),
     limpiarUltimoDerrotado: () => setEstado((s) => ({ ...s, ultimoDerrotado: null })),
+    limpiarUltimoResultado: () => setEstado((s) => ({ ...s, ultimoResultado: null, ultimoDerrotado: null })),
     refrescar,
   };
 }

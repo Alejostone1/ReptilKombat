@@ -1,8 +1,9 @@
-import { describe, it, expect, vi, afterEach } from "vitest";
+import { describe, it, expect } from "vitest";
 import { REPTILES_BASE } from "@/data/reptiles";
 import { ABILITIES } from "@/data/abilities";
 import { buildReptil } from "@/lib/game-engine/stats";
-import { calculateDamage } from "@/lib/game-engine/damage";
+import { calculateDamage, VARIANZA_DANO } from "@/lib/game-engine/damage";
+import { crearRng, secuenciaRng } from "@/lib/utils/rng";
 import { DEFAULT_ENGINE_CONFIG } from "@/lib/game-engine/config";
 import { MAX_CARTAS_MAZO } from "./types";
 import { crearPartida, invocar, atacar, puedeInvocar, puedeAtacar, verificarGanador } from "./engine";
@@ -16,9 +17,9 @@ function nuevaPartida(mazoA: string[], mazoB: string[], nombreA?: string, nombre
   return crearPartida(mazoA, mazoB, ROSTER, ABILITIES, DEFAULT_ENGINE_CONFIG, nombreA, nombreB);
 }
 
-afterEach(() => {
-  vi.restoreAllMocks();
-});
+// Orden de tiradas en atacar(): 1) crítico, 2) variación. 0.999 = sin crítico; 0.5 = variación neutra (×1.0).
+const SIN_CRITICO_NEUTRO = () => secuenciaRng([0.999, 0.5]);
+const CRITICO_NEUTRO = () => secuenciaRng([0, 0.5]);
 
 describe("motor de cartas: invocación", () => {
   it("empieza en fase invocando con el jugador A en turno", () => {
@@ -47,13 +48,12 @@ describe("motor de cartas: invocación", () => {
 
 describe("motor de cartas: combate", () => {
   it("el daño de un ataque (sin crítico) coincide exactamente con calculateDamage()", () => {
-    vi.spyOn(Math, "random").mockReturnValue(0.999); // fuerza "sin crítico" sin importar la probabilidad del reptil
     let state = nuevaPartida(["dragon-barbudo"], ["caiman-negro"]);
     state = invocar(state, "dragon-barbudo", ROSTER);
     state = invocar(state, "caiman-negro", ROSTER);
 
     const esperado = calculateDamage(dragonBarbudo, caimanNegro, habilidadDragon, DEFAULT_ENGINE_CONFIG);
-    const resultado = atacar(state, habilidadDragon.id, ROSTER, ABILITIES, DEFAULT_ENGINE_CONFIG);
+    const resultado = atacar(state, habilidadDragon.id, ROSTER, ABILITIES, DEFAULT_ENGINE_CONFIG, { rng: SIN_CRITICO_NEUTRO() });
 
     expect(resultado.critico).toBe(false);
     expect(resultado.danoEsperado).toBe(esperado.danoEsperado);
@@ -62,16 +62,38 @@ describe("motor de cartas: combate", () => {
   });
 
   it("un crítico aplica el multiplicador de crítico configurado", () => {
-    vi.spyOn(Math, "random").mockReturnValue(0); // 0 < cualquier probabilidad > 0: siempre crítico
     let state = nuevaPartida(["dragon-barbudo"], ["caiman-negro"]);
     state = invocar(state, "dragon-barbudo", ROSTER);
     state = invocar(state, "caiman-negro", ROSTER);
 
     const esperado = calculateDamage(dragonBarbudo, caimanNegro, habilidadDragon, DEFAULT_ENGINE_CONFIG);
-    const resultado = atacar(state, habilidadDragon.id, ROSTER, ABILITIES, DEFAULT_ENGINE_CONFIG);
+    const resultado = atacar(state, habilidadDragon.id, ROSTER, ABILITIES, DEFAULT_ENGINE_CONFIG, { rng: CRITICO_NEUTRO() });
 
     expect(resultado.critico).toBe(true);
     expect(resultado.danoEsperado).toBeCloseTo(esperado.danoEsperado * DEFAULT_ENGINE_CONFIG.criticoMultiplicador, 1);
+  });
+
+  it("la variación mueve el daño dentro de ±15 % del valor esperado", () => {
+    let state = nuevaPartida(["dragon-barbudo"], ["caiman-negro"]);
+    state = invocar(state, "dragon-barbudo", ROSTER);
+    state = invocar(state, "caiman-negro", ROSTER);
+    const base = calculateDamage(dragonBarbudo, caimanNegro, habilidadDragon, DEFAULT_ENGINE_CONFIG).danoEsperado;
+
+    const bajo = atacar(state, habilidadDragon.id, ROSTER, ABILITIES, DEFAULT_ENGINE_CONFIG, { rng: secuenciaRng([0.999, 0]) });
+    const alto = atacar(state, habilidadDragon.id, ROSTER, ABILITIES, DEFAULT_ENGINE_CONFIG, { rng: secuenciaRng([0.999, 0.999999]) });
+
+    expect(bajo.danoEsperado).toBeCloseTo(base * (1 - VARIANZA_DANO), 1);
+    expect(alto.danoEsperado).toBeCloseTo(base * (1 + VARIANZA_DANO), 1);
+  });
+
+  it("con la misma semilla, el mismo ataque da exactamente el mismo resultado", () => {
+    let state = nuevaPartida(["dragon-barbudo"], ["caiman-negro"]);
+    state = invocar(state, "dragon-barbudo", ROSTER);
+    state = invocar(state, "caiman-negro", ROSTER);
+    const a = atacar(state, habilidadDragon.id, ROSTER, ABILITIES, DEFAULT_ENGINE_CONFIG, { rng: crearRng(42) });
+    const b = atacar(state, habilidadDragon.id, ROSTER, ABILITIES, DEFAULT_ENGINE_CONFIG, { rng: crearRng(42) });
+    expect(a.danoEsperado).toBe(b.danoEsperado);
+    expect(a.critico).toBe(b.critico);
   });
 
   it("respeta cooldown: una habilidad usada no puede reutilizarse hasta que expire el cooldown", () => {

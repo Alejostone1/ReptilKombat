@@ -9,7 +9,7 @@ export default function LandingLayout({ children }: { children: ReactNode }) {
   const [adminOpen, setAdminOpen] = useState(false);
 
   return (
-    <div className="flex h-screen flex-col overflow-hidden bg-background">
+    <div className="flex h-dvh flex-col overflow-hidden bg-background">
       <header className="flex items-center justify-between px-4 py-3 sm:px-6">
         <Link href="/" className="flex items-center gap-2">
           <span className="text-xl">🦎</span>

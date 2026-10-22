@@ -6,10 +6,11 @@ import Link from "next/link";
 import { useRoster } from "@/lib/hooks/useRoster";
 import { useEngineData } from "@/lib/hooks/useEngineData";
 import { useGameRoom } from "@/lib/hooks/useGameRoom";
-import { puedeInvocar, puedeAtacar, habilidadesDisponibles, puedeUsarHabilidad, reptilDesdeStats, multiplicadorEstado } from "@/lib/card-game/engine";
-import { calculateDamage } from "@/lib/game-engine/damage";
-import { getAffinityTier } from "@/lib/game-engine/affinities";
-import type { MatchupTier } from "@/types/affinity";
+import { puedeInvocar, puedeAtacar } from "@/lib/card-game/engine";
+import { opcionesDeAtaque } from "@/lib/card-game/opciones-ataque";
+import { ataqueParaTablero } from "@/lib/card-game/mensajes";
+import { FEATURES } from "@/config/features";
+import type { Lado } from "@/lib/card-game/types";
 import { leerViewToken } from "@/lib/utils/session";
 import { Board } from "@/components/cards/Board";
 import { TurnBanner } from "@/components/cards/TurnBanner";
@@ -17,16 +18,11 @@ import { AttackAnimation } from "@/components/cards/AttackAnimation";
 import { Countdown } from "@/components/cards/Countdown";
 import { ConnectionBanner } from "@/components/cards/ConnectionBanner";
 import { GameCard } from "@/components/cards/GameCard";
+import { AttackMenu } from "@/components/cards/AttackMenu";
+import { ActionDock, HandStrip } from "@/components/cards/ActionDock";
 import { Button } from "@/components/ui/Button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/Card";
-import { Badge } from "@/components/ui/Badge";
+import { Card } from "@/components/ui/Card";
 import { cn } from "@/lib/utils";
-
-const TIER_INFO: Record<MatchupTier, { label: string; tone: "ok" | "danger" | "neutral" }> = {
-  ventaja: { label: "🟢 Ventaja", tone: "ok" },
-  desventaja: { label: "🔴 Desventaja", tone: "danger" },
-  neutral: { label: "⚪ Neutral", tone: "neutral" },
-};
 
 export default function SalaOnlinePage() {
   const params = useParams<{ codigo: string }>();
@@ -45,7 +41,6 @@ export default function SalaOnlinePage() {
   const room = useGameRoom(codigo, viewToken ?? null);
   const [mostrarCountdown, setMostrarCountdown] = useState(false);
   const countdownMostrado = useRef(false);
-  const [sacudir, setSacudir] = useState(false);
   const [copiado, setCopiado] = useState(false);
 
   useEffect(() => {
@@ -55,37 +50,22 @@ export default function SalaOnlinePage() {
     }
   }, [room.estadoSala]);
 
-  const habilidadesTurno = useMemo(
-    () => (room.estado ? habilidadesDisponibles(room.estado, abilities) : []),
-    [room.estado, abilities],
-  );
-
-  // Igual que en mesa/page.tsx: lee siempre del snapshot congelado en room.estado.configuracion,
-  // nunca del roster en vivo, para que la preview jamás se desincronice de lo que el servidor aplique.
-  const previews = useMemo(() => {
+  // Solo en mi turno: lee del snapshot congelado de la partida (nunca del roster en vivo). Con
+  // HIDE_ATTACK_DAMAGE no se calcula ni se muestra ningún número de daño antes de atacar.
+  const opciones = useMemo(() => {
     if (!room.estado || !room.lado || room.estado.turno !== room.lado) return [];
-    const propio = room.lado === "A" ? room.estado.jugadorA : room.estado.jugadorB;
-    const rival = room.lado === "A" ? room.estado.jugadorB : room.estado.jugadorA;
-    const atacanteStats = propio.activo ? room.estado.configuracion.reptiles[propio.activo.reptilId] : null;
-    const defensorStats = rival.activo ? room.estado.configuracion.reptiles[rival.activo.reptilId] : null;
-    if (!atacanteStats || !defensorStats || !propio.activo || !rival.activo) return [];
+    return opcionesDeAtaque(room.estado, abilities, config, FEATURES.HIDE_ATTACK_DAMAGE);
+  }, [room.estado, room.lado, abilities, config]);
 
-    const atacante = reptilDesdeStats(atacanteStats, { atk: Math.round(atacanteStats.atk * multiplicadorEstado(propio.activo, "atk")) });
-    const defensor = reptilDesdeStats(defensorStats, {
-      hp: rival.activo.hpActual,
-      def: Math.round(defensorStats.def * multiplicadorEstado(rival.activo, "def")),
-    });
-    const tier = getAffinityTier(atacanteStats.afinidad, defensorStats.afinidad);
-    return habilidadesTurno
-      .map((h) => ({
-        habilidad: h,
-        tier,
-        resultado: calculateDamage(atacante, defensor, h, config),
-        disponible: puedeUsarHabilidad(propio.activo!, h),
-        cooldownRestante: propio.activo!.cooldowns[h.id] ?? 0,
-      }))
-      .sort((a, b) => Number(b.disponible) - Number(a.disponible) || b.resultado.danoEsperado - a.resultado.danoEsperado);
-  }, [room.estado, room.lado, habilidadesTurno, config]);
+  // El tablero siempre dibuja MI carta a la izquierda ("A" en pantalla): si mi lado real es "B" se invierte.
+  const ataqueTablero = useMemo(() => {
+    if (!room.ultimoResultado || !room.ultimoAtaque || !room.lado) return null;
+    const r = room.ultimoResultado;
+    const t = ataqueParaTablero({ dano: r.danoEsperado, critico: r.critico, efecto: r.efectoAplicado }, room.ultimoAtaque.atacante, room.ultimoAtaque.id);
+    if (room.lado === "A") return t;
+    const voltear = (l: Lado): Lado => (l === "A" ? "B" : "A");
+    return { ...t, atacante: voltear(t.atacante), objetivo: voltear(t.objetivo) };
+  }, [room.ultimoResultado, room.ultimoAtaque, room.lado]);
 
   if (viewToken === undefined) return null;
 
@@ -167,11 +147,8 @@ export default function SalaOnlinePage() {
   const atacarDisponible = esMiTurno && puedeAtacar(room.estado);
   const miJugador = room.lado === "A" ? room.estado.jugadorA : room.estado.jugadorB;
 
-  function onAtacar(habilidadId: string, disponible: boolean) {
-    if (!disponible) return;
-    setSacudir(true);
+  function onAtacar(habilidadId: string) {
     room.atacar(habilidadId);
-    setTimeout(() => setSacudir(false), 500);
   }
 
   if (room.estadoSala === "FINISHED" && room.ganador) {
@@ -194,10 +171,10 @@ export default function SalaOnlinePage() {
   }
 
   return (
-    <div className="space-y-6 px-4 py-6">
+    <div className="flex min-h-full flex-col gap-3">
       <ConnectionBanner conexion={room.conexion} />
       <div className="flex items-center justify-between">
-        <h1 className="text-xl font-bold text-foreground">⚔️ Sala {codigo}</h1>
+        <h1 className="text-lg font-bold text-foreground sm:text-xl">⚔️ Sala {codigo}</h1>
         <span className="text-xs text-foreground-muted">
           {room.nombrePropio} vs {room.nombreRival}
         </span>
@@ -216,7 +193,8 @@ export default function SalaOnlinePage() {
             : { ...room.estado, jugadorA: room.estado.jugadorB, jugadorB: room.estado.jugadorA, turno: room.estado.turno === "A" ? "B" : "A" }
         }
         roster={roster}
-        sacudirLado={sacudir ? "B" : null}
+        sacudirLado={ataqueTablero && ataqueTablero.tono !== "info" && ataqueTablero.objetivo !== ataqueTablero.atacante ? ataqueTablero.objetivo : null}
+        ataque={ataqueTablero}
         ultimaInvocacion={null}
         ultimoDerrotado={
           room.ultimoDerrotado
@@ -226,57 +204,18 @@ export default function SalaOnlinePage() {
       />
 
       {room.estado.fase !== "terminado" && (invocarDisponible || atacarDisponible) && (
-        <Card>
-          <CardHeader>
-            <CardTitle>{invocarDisponible ? "Invocar tu carta" : "Elige tu ataque"}</CardTitle>
-          </CardHeader>
-          <CardContent>
-            {invocarDisponible && (
-              <div className="flex flex-wrap justify-center gap-3">
-                {miJugador.mazo.map((id) => {
-                  const reptil = roster.find((r) => r.id === id);
-                  if (!reptil) return null;
-                  return <GameCard key={id} reptil={reptil} size="sm" seleccionable onClick={() => room.invocar(id)} />;
-                })}
-              </div>
-            )}
-            {atacarDisponible && (
-              <div className="grid gap-2 sm:grid-cols-2">
-                {previews.map(({ habilidad: h, tier, resultado, disponible, cooldownRestante }, i) => (
-                  <button
-                    key={h.id}
-                    onClick={() => onAtacar(h.id, disponible)}
-                    disabled={!disponible}
-                    className={cn(
-                      "flex flex-col gap-2 rounded-lg border bg-panel-secondary px-3 py-3 text-left transition-colors",
-                      disponible ? "hover:border-reptile-green/60" : "cursor-not-allowed opacity-40",
-                      i === 0 && disponible ? "border-reptile-green/50" : "border-border-subtle",
-                      "sm:flex-row sm:items-center sm:justify-between",
-                    )}
-                  >
-                    <span className="min-w-0">
-                      <span className="flex items-center gap-1.5">
-                        <span className="truncate font-semibold text-foreground">{h.nombre}</span>
-                        {i === 0 && disponible && <Badge tone="ok">★ Mejor opción</Badge>}
-                      </span>
-                      <span className="block text-xs text-foreground-muted">{h.efecto}</span>
-                    </span>
-                    <span className="flex shrink-0 flex-wrap items-center gap-1.5 text-xs sm:flex-col sm:items-end">
-                      <Badge tone={TIER_INFO[tier].tone}>{TIER_INFO[tier].label}</Badge>
-                      <Badge tone="accent">≈{Math.round(resultado.danoEsperado)} daño</Badge>
-                      {h.costoEnergia > 0 && <Badge>⚡{h.costoEnergia}</Badge>}
-                      {cooldownRestante > 0 ? (
-                        <Badge tone="danger">⏱️ {cooldownRestante}</Badge>
-                      ) : h.cooldownTurnos > 0 ? (
-                        <Badge tone="ok">✅ Lista</Badge>
-                      ) : null}
-                    </span>
-                  </button>
-                ))}
-              </div>
-            )}
-          </CardContent>
-        </Card>
+        <ActionDock titulo={invocarDisponible ? "Invoca tu carta" : "Elige tu ataque"}>
+          {invocarDisponible && (
+            <HandStrip>
+              {miJugador.mazo.map((id) => {
+                const reptil = roster.find((r) => r.id === id);
+                if (!reptil) return null;
+                return <GameCard key={id} reptil={reptil} size="sm" seleccionable onClick={() => room.invocar(id)} />;
+              })}
+            </HandStrip>
+          )}
+          {atacarDisponible && <AttackMenu opciones={opciones} memoria={room.memoria} ocultarDano={FEATURES.HIDE_ATTACK_DAMAGE} onAtacar={onAtacar} />}
+        </ActionDock>
       )}
 
       {!esMiTurno && room.estado.fase !== "terminado" && (
@@ -286,7 +225,7 @@ export default function SalaOnlinePage() {
       <AttackAnimation
         resultado={room.ultimoResultado}
         habilidadNombre={room.ultimoResultado ? abilities.find((a) => a.id === room.ultimoResultado!.habilidadId)?.nombre : undefined}
-        onComplete={room.limpiarUltimoDerrotado}
+        onComplete={room.limpiarUltimoResultado}
       />
 
       <div className="text-center">

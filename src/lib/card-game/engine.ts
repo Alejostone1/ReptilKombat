@@ -1,8 +1,9 @@
 import type { Reptil } from "@/types/reptile";
 import type { Habilidad } from "@/types/ability";
 import type { EngineConfig } from "@/lib/game-engine/config";
-import { calculateDamage } from "@/lib/game-engine/damage";
+import { calculateDamage, aplicarVarianza } from "@/lib/game-engine/damage";
 import { getAffinityTier } from "@/lib/game-engine/affinities";
+import type { MatchupTier } from "@/types/affinity";
 import type { GameState, JugadorState, CartaEnJuego, Lado, EventoLog, Configuracion, TipoEstado } from "./types";
 import { MAX_CARTAS_MAZO } from "./types";
 
@@ -143,9 +144,16 @@ export interface ResultadoAtaque {
   multiplicadorAfinidad: number;
   stab: number;
   superEfectivo: boolean;
+  /** Ventaja / neutral / desventaja de afinidad del atacante sobre el defensor (para el texto "No es muy efectivo..."). */
+  tier: MatchupTier;
   critico: boolean;
   derrotado: boolean;
   efectoAplicado: { tipo: TipoEstado | "curacion"; magnitud: number } | null;
+}
+
+export interface OpcionesAtaque {
+  /** Fuente de aleatoriedad (0–1). Inyectable para pruebas deterministas; por defecto Math.random. */
+  rng?: () => number;
 }
 
 const TIPOS_BUFF = new Set<TipoEstado>(["buff_atk", "buff_def", "buff_spd"]);
@@ -163,7 +171,9 @@ export function atacar(
   roster: Reptil[],
   abilities: Habilidad[],
   config: EngineConfig,
+  opciones: OpcionesAtaque = {},
 ): ResultadoAtaque {
+  const rng = opciones.rng ?? Math.random;
   if (!puedeAtacar(state)) throw new Error("No se puede atacar en este momento.");
   const ladoAtacante = state.turno;
   const ladoDefensor = otroLado(ladoAtacante);
@@ -194,9 +204,12 @@ export function atacar(
   });
 
   const resultado = calculateDamage(atacanteReptil, defensorReptil, habilidad, config);
-  const superEfectivo = getAffinityTier(atacanteStats.afinidad, defensorStats.afinidad) === "ventaja";
-  const critico = Math.random() * 100 < atacanteStats.criticoProbabilidad;
-  const danoFinal = critico ? round2(resultado.danoEsperado * config.criticoMultiplicador) : resultado.danoEsperado;
+  const tier = getAffinityTier(atacanteStats.afinidad, defensorStats.afinidad);
+  const superEfectivo = tier === "ventaja";
+  // Orden fijo de tiradas (importa para los tests con semilla): 1) crítico, 2) variación ±15 %.
+  const critico = rng() * 100 < atacanteStats.criticoProbabilidad;
+  const danoVariado = aplicarVarianza(resultado.danoEsperado, rng);
+  const danoFinal = critico ? round2(danoVariado * config.criticoMultiplicador) : danoVariado;
 
   const nuevoHp = Math.max(0, defensorState.activo.hpActual - danoFinal);
   const derrotado = nuevoHp <= 0;
@@ -279,6 +292,7 @@ export function atacar(
     multiplicadorAfinidad: resultado.multiplicadorAfinidad,
     stab: resultado.stab,
     superEfectivo,
+    tier,
     critico,
     derrotado,
     efectoAplicado,

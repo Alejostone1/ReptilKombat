@@ -3,7 +3,8 @@
 import { useEffect } from "react";
 import { AnimatePresence, motion } from "framer-motion";
 import type { ResultadoAtaque } from "@/lib/card-game/engine";
-import type { TipoEstado } from "@/lib/card-game/types";
+import { mensajeDeAtaque, type TonoMensaje } from "@/lib/card-game/mensajes";
+import { cn } from "@/lib/utils";
 
 interface AttackAnimationProps {
   resultado: Omit<ResultadoAtaque, "state"> | null;
@@ -11,110 +12,65 @@ interface AttackAnimationProps {
   onComplete: () => void;
 }
 
-const EFECTO_INFO: Record<TipoEstado | "curacion", { label: string; emoji: string }> = {
-  veneno: { label: "¡Envenenado!", emoji: "☠️" },
-  debuff_atk: { label: "Ataque reducido", emoji: "📉" },
-  debuff_def: { label: "Defensa reducida", emoji: "📉" },
-  buff_atk: { label: "Ataque potenciado", emoji: "📈" },
-  buff_def: { label: "Defensa potenciada", emoji: "📈" },
-  buff_spd: { label: "Velocidad potenciada", emoji: "📈" },
-  curacion: { label: "¡Curación!", emoji: "💚" },
+const TONO_CLASES: Record<TonoMensaje, string> = {
+  critico: "border-affinity-venenoso bg-affinity-venenoso/90 text-white",
+  bueno: "border-state-ok bg-state-ok/95 text-[#04120b]",
+  malo: "border-state-warn bg-state-warn/95 text-[#04120b]",
+  neutro: "border-border-subtle bg-panel text-foreground",
+  ko: "border-state-danger bg-state-danger/95 text-white",
 };
 
-/** Overlay transitorio de impacto: daño, crítico, multiplicador de afinidad, efecto aplicado y "¡SÚPER EFECTIVO!" cuando aplica. */
+/**
+ * Cartel de resultado, NO bloqueante: aparece arriba (sobre la zona de cartas, sin taparlas ni capturar
+ * toques) con el nombre del ataque y la frase corta ("¡Súper efectivo!", "No hizo nada…"). El número de
+ * daño no va aquí: flota sobre la carta golpeada (ver GameCard `impacto`).
+ */
 export function AttackAnimation({ resultado, habilidadNombre, onComplete }: AttackAnimationProps) {
   useEffect(() => {
     if (!resultado) return;
-    const t = setTimeout(onComplete, resultado.critico ? 1700 : 1400);
+    // Vibración corta en celulares que la soporten (crítico y K.O. con patrón propio).
+    if (typeof navigator !== "undefined" && typeof navigator.vibrate === "function") {
+      try {
+        navigator.vibrate(resultado.derrotado ? [60, 40, 120] : resultado.critico ? [40, 30, 40] : 25);
+      } catch {
+        /* algunos navegadores bloquean vibrate sin gesto previo: es solo un extra */
+      }
+    }
+    const t = setTimeout(onComplete, resultado.critico || resultado.derrotado ? 1900 : 1500);
     return () => clearTimeout(t);
   }, [resultado, onComplete]);
 
-  const efecto = resultado?.efectoAplicado ? EFECTO_INFO[resultado.efectoAplicado.tipo] : null;
+  const mensaje = resultado
+    ? mensajeDeAtaque({
+        dano: resultado.danoEsperado,
+        tier: resultado.tier,
+        critico: resultado.critico,
+        derrotado: resultado.derrotado,
+        efecto: resultado.efectoAplicado,
+      })
+    : null;
 
   return (
-    <AnimatePresence>
-      {resultado && (
-        <motion.div
-          initial={{ opacity: 0 }}
-          animate={resultado.critico ? { opacity: 1, x: [0, -6, 6, -4, 4, 0] } : { opacity: 1 }}
-          exit={{ opacity: 0 }}
-          transition={resultado.critico ? { duration: 0.4 } : undefined}
-          className="pointer-events-none fixed inset-0 z-50 flex items-center justify-center"
-        >
+    <div className="pointer-events-none fixed inset-x-0 top-16 z-50 flex justify-center px-4" aria-live="polite">
+      <AnimatePresence>
+        {resultado && mensaje && (
           <motion.div
-            initial={{ scale: 0.3, opacity: 0 }}
-            animate={{ scale: resultado.critico ? [0.3, 1.35, 1.15] : [0.3, 1.15, 1], opacity: 1 }}
-            exit={{ scale: 1.4, opacity: 0 }}
-            transition={{ duration: 0.5 }}
-            className="flex flex-col items-center gap-2 text-center"
+            key={`${resultado.habilidadId}-${resultado.danoEsperado}-${resultado.critico}`}
+            initial={{ opacity: 0, y: -16, scale: 0.7 }}
+            animate={{ opacity: 1, y: 0, scale: 1 }}
+            exit={{ opacity: 0, y: -10, scale: 0.9 }}
+            transition={{ type: "spring", stiffness: 420, damping: 22 }}
+            className={cn("flex max-w-full flex-col items-center rounded-2xl border-2 px-4 py-2 text-center shadow-xl", TONO_CLASES[mensaje.tono])}
           >
-            {habilidadNombre && (
-              <p className="rounded-full bg-black/70 px-4 py-1 text-sm font-semibold text-white">{habilidadNombre}</p>
-            )}
-            {resultado.critico && (
-              <motion.p
-                initial={{ scale: 0, rotate: -8 }}
-                animate={{ scale: 1, rotate: -4 }}
-                transition={{ type: "spring", stiffness: 500 }}
-                className="text-2xl font-black uppercase tracking-widest text-affinity-venenoso drop-shadow-[0_0_10px_rgba(142,68,173,0.9)]"
-              >
-                ⚔️ ¡Crítico!
-              </motion.p>
-            )}
-            <motion.p
-              initial={{ y: 10 }}
-              animate={{ y: 0 }}
-              className={
-                resultado.critico
-                  ? "text-7xl font-black text-affinity-venenoso drop-shadow-[0_0_16px_rgba(142,68,173,0.9)]"
-                  : "text-6xl font-black text-state-danger drop-shadow-[0_0_12px_rgba(224,82,82,0.8)]"
-              }
-            >
-              -{Math.round(resultado.danoEsperado)}
-            </motion.p>
-            {resultado.superEfectivo && (
-              <motion.p
-                initial={{ scale: 0 }}
-                animate={{ scale: 1 }}
-                transition={{ delay: 0.15, type: "spring", stiffness: 400 }}
-                className="rounded-full bg-state-ok px-4 py-1 text-sm font-black uppercase tracking-wide text-[#04120b]"
-              >
-                ¡Súper efectivo!
-              </motion.p>
-            )}
-            {resultado.stab > 1 && (
-              <motion.p
-                initial={{ scale: 0 }}
-                animate={{ scale: 1 }}
-                transition={{ delay: 0.25, type: "spring", stiffness: 400 }}
-                className="rounded-full bg-reptile-green/90 px-3 py-0.5 text-xs font-bold text-[#04120b]"
-              >
-                STAB ×{resultado.stab.toFixed(2)}
-              </motion.p>
-            )}
-            {efecto && (
-              <motion.p
-                initial={{ scale: 0 }}
-                animate={{ scale: 1 }}
-                transition={{ delay: 0.3, type: "spring", stiffness: 400 }}
-                className="rounded-full bg-affinity-venenoso/90 px-3 py-0.5 text-xs font-bold text-white"
-              >
-                {efecto.emoji} {efecto.label}
-              </motion.p>
-            )}
-            {resultado.derrotado && (
-              <motion.p
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 1 }}
-                transition={{ delay: 0.4 }}
-                className="text-sm font-semibold text-white"
-              >
-                💥 ¡Fuera de combate!
-              </motion.p>
-            )}
+            {habilidadNombre && <span className="max-w-[16rem] truncate text-[11px] font-semibold uppercase tracking-wide opacity-80">{habilidadNombre}</span>}
+            <span className={cn("font-black leading-tight", mensaje.tono === "critico" || mensaje.tono === "ko" ? "text-2xl" : "text-xl")}>
+              {mensaje.titulo}
+            </span>
+            {mensaje.detalle && <span className="text-xs font-bold">{mensaje.detalle}</span>}
+            <span className="sr-only">Daño {Math.round(resultado.danoEsperado)}</span>
           </motion.div>
-        </motion.div>
-      )}
-    </AnimatePresence>
+        )}
+      </AnimatePresence>
+    </div>
   );
 }

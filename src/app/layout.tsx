@@ -1,4 +1,4 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import type { ReactNode } from "react";
 import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
@@ -17,6 +17,14 @@ export const metadata: Metadata = {
   title: "🦎 Reptiles RPG · Game Balance System",
   description:
     "Herramienta profesional de diseño, análisis y balance para el videojuego de reptiles Reptiles RPG.",
+};
+
+// viewport-fit=cover habilita env(safe-area-inset-*) (notch / barra de gestos) para la barra de acción del juego.
+export const viewport: Viewport = {
+  width: "device-width",
+  initialScale: 1,
+  viewportFit: "cover",
+  themeColor: "#101e1a",
 };
 
 export default function RootLayout({ children }: { children: ReactNode }) {

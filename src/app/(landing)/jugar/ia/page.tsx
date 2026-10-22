@@ -48,7 +48,7 @@ export default function ContraIAPage() {
       <div className="text-center">
         <h1 className="text-2xl font-bold text-foreground">🤖 Contra la IA</h1>
         <p className="text-sm text-foreground-muted">
-          Arma tu mazo. La IA arma el suyo y toma decisiones reales: elige el mejor matchup al invocar y el mayor daño esperado al atacar.
+          Arma tu mazo. La IA arma el suyo y juega en serio: ¡demuéstrale quién manda!
         </p>
       </div>
 

@@ -2,7 +2,7 @@
 
 import type { Reptil } from "@/types/reptile";
 import type { GameState, Lado } from "@/lib/card-game/types";
-import { GameCard } from "./GameCard";
+import { GameCard, type TonoImpacto } from "./GameCard";
 import { cn } from "@/lib/utils";
 
 interface BoardProps {
@@ -12,6 +12,8 @@ interface BoardProps {
   ultimaInvocacion: Lado | null;
   /** Reptil que acaba de caer a 0 HP: se muestra un instante en su estado "derrotada" antes de dejar el slot vacío. */
   ultimoDerrotado?: { lado: Lado; reptilId: string } | null;
+  /** Último ataque, para animar: el atacante embiste y sobre `objetivo` flota `texto` (daño, curación, efecto). */
+  ataque?: { id: number; atacante: Lado; objetivo: Lado; texto: string; tono: TonoImpacto } | null;
 }
 
 function LadoInfo({
@@ -34,9 +36,9 @@ function LadoInfo({
   );
 }
 
-const EMPTY_SLOT_CLASSES = "flex aspect-[3/4] w-36 items-center justify-center rounded-xl border-2 border-dashed border-border-subtle p-3 text-center text-xs text-foreground-muted sm:w-48 md:w-56";
+const EMPTY_SLOT_CLASSES = "flex aspect-[3/4] w-[40vw] max-w-[10.5rem] items-center justify-center rounded-xl border-2 border-dashed border-border-subtle p-3 text-center text-xs text-foreground-muted sm:w-48 sm:max-w-none md:w-56";
 
-export function Board({ gameState, roster, sacudirLado, ultimaInvocacion, ultimoDerrotado }: BoardProps) {
+export function Board({ gameState, roster, sacudirLado, ultimaInvocacion, ultimoDerrotado, ataque }: BoardProps) {
   const reptilA = gameState.jugadorA.activo ? roster.find((r) => r.id === gameState.jugadorA.activo!.reptilId) : null;
   const reptilB = gameState.jugadorB.activo ? roster.find((r) => r.id === gameState.jugadorB.activo!.reptilId) : null;
   const derrotadoA = !reptilA && ultimoDerrotado?.lado === "A" ? roster.find((r) => r.id === ultimoDerrotado.reptilId) : null;
@@ -59,7 +61,7 @@ export function Board({ gameState, roster, sacudirLado, ultimaInvocacion, ultimo
         />
       </div>
 
-      <div className="flex flex-col items-center justify-center gap-3 py-3 sm:flex-row sm:gap-6 sm:py-6 md:gap-16">
+      <div className="flex items-center justify-center gap-2 py-2 sm:gap-6 sm:py-6 md:gap-16">
         <div className="flex flex-col items-center gap-2">
           {reptilA ? (
             <GameCard
@@ -70,6 +72,11 @@ export function Board({ gameState, roster, sacudirLado, ultimaInvocacion, ultimo
               size="lg"
               sacudir={sacudirLado === "A"}
               animarEntrada={ultimaInvocacion === "A"}
+              estados={gameState.jugadorA.activo?.estados}
+              aturdidoTurnos={gameState.jugadorA.activo?.aturdidoTurnos}
+              turnoActivo={gameState.turno === "A" && gameState.fase !== "terminado"}
+              embestida={ataque?.atacante === "A" ? 1 : null}
+              impacto={ataque?.objetivo === "A" ? { id: ataque.id, texto: ataque.texto, tono: ataque.tono } : null}
             />
           ) : derrotadoA ? (
             <GameCard reptil={derrotadoA} hpActual={0} size="lg" />
@@ -78,7 +85,7 @@ export function Board({ gameState, roster, sacudirLado, ultimaInvocacion, ultimo
           )}
         </div>
 
-        <span className="text-xl font-black text-foreground-muted sm:text-2xl">VS</span>
+        <span className="text-lg font-black italic text-foreground-muted sm:text-2xl">VS</span>
 
         <div className="flex flex-col items-center gap-2">
           {reptilB ? (
@@ -90,6 +97,11 @@ export function Board({ gameState, roster, sacudirLado, ultimaInvocacion, ultimo
               size="lg"
               sacudir={sacudirLado === "B"}
               animarEntrada={ultimaInvocacion === "B"}
+              estados={gameState.jugadorB.activo?.estados}
+              aturdidoTurnos={gameState.jugadorB.activo?.aturdidoTurnos}
+              turnoActivo={gameState.turno === "B" && gameState.fase !== "terminado"}
+              embestida={ataque?.atacante === "B" ? -1 : null}
+              impacto={ataque?.objetivo === "B" ? { id: ataque.id, texto: ataque.texto, tono: ataque.tono } : null}
             />
           ) : derrotadoB ? (
             <GameCard reptil={derrotadoB} hpActual={0} size="lg" />

@@ -37,7 +37,7 @@ const MODOS: Modo[] = [
     href: "/jugar/ia",
     emoji: "🤖",
     titulo: "Contra la IA",
-    descripcion: "Un oponente con decisiones reales: prioriza matchups favorables y el mayor daño esperado.",
+    descripcion: "Un rival que juega en serio. ¡Demuéstrale quién manda!",
     accent: "hover:border-affinity-sensorial/60",
   },
   {

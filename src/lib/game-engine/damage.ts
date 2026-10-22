@@ -66,6 +66,21 @@ export function calculateDamage(
   };
 }
 
+/** Variación aleatoria del daño real de un ataque: ±15 % para que no sea un número fijo y predecible. */
+export const VARIANZA_DANO = 0.15;
+
+/**
+ * Aplica la variación aleatoria al daño ya calculado. El `rng` es inyectable (por defecto lo pasa
+ * el motor con Math.random) para que las pruebas sean deterministas. Siempre consume una tirada,
+ * incluso con daño 0, para que la secuencia de tiradas de un ataque no dependa del resultado.
+ * `calculateDamage` NO usa esto: sigue siendo determinista (simulador, IA y previews).
+ */
+export function aplicarVarianza(dano: number, rng: () => number, rango = VARIANZA_DANO): number {
+  const tirada = rng();
+  if (dano <= 0) return 0;
+  return round2(dano * (1 + (tirada * 2 - 1) * rango));
+}
+
 function round2(n: number): number {
   return Math.round(n * 100) / 100;
 }
