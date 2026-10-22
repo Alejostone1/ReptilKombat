@@ -33,6 +33,7 @@ function rowToReptilBase(row: ReptileRow): ReptilBase {
     adp: row.adp,
     energiaMax: row.energia_max,
     criticoProbabilidad: row.critico_probabilidad,
+    family: row.family ?? "reptil",
     pasiva: row.pasiva ?? undefined,
     activo: row.activo,
     fechaCreacion: row.fecha_creacion,
@@ -59,7 +60,7 @@ export function reptileInputToRow(input: {
   adp: number;
   energiaMax: number;
   criticoProbabilidad: number;
-}): Omit<ReptileRow, "activo" | "fecha_creacion" | "id" | "numero" | "imagen_url" | "imagen_fuente" | "imagen_autor"> {
+}): Omit<ReptileRow, "activo" | "fecha_creacion" | "id" | "numero" | "imagen_url" | "imagen_fuente" | "imagen_autor" | "family"> {
   return {
     nombre: input.nombre,
     nombre_cientifico: input.nombreCientifico,

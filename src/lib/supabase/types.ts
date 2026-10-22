@@ -65,6 +65,8 @@ export interface ReptileRow {
   adp: number;
   energia_max: number;
   critico_probabilidad: number;
+  /** Familia del animal ('reptil' por defecto): preparada para futuras familias, sin UI todavía. */
+  family: string;
   pasiva: string | null;
   activo: boolean;
   fecha_creacion: string;

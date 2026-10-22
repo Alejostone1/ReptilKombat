@@ -36,6 +36,9 @@ export interface ReptilBase {
   /** Probabilidad (%) de que cualquier ataque de este reptil sea crítico. */
   criticoProbabilidad: number;
 
+  /** Familia del animal (por defecto 'reptil'). Preparada para sumar acuáticos, aves, etc. */
+  family?: string;
+
   pasiva?: string;
 
   /** Solo relevante en /admin: si es false, el reptil no aparece en el roster público ni en cálculos. */
