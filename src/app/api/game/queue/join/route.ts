@@ -82,8 +82,8 @@ export async function POST(request: Request) {
   await emitirEstado(
     estadoInicial,
     [
-      { id: "", roomId: sala.id, nombre: oponente.nombre, lado: "A", sessionId: oponente.sessionId, viewToken: viewTokenA },
-      { id: "", roomId: sala.id, nombre: body.nombre, lado: "B", sessionId: body.sessionId, viewToken: viewTokenB },
+      { id: "", roomId: sala.id, nombre: oponente.nombre, lado: "A", sessionId: oponente.sessionId, viewToken: viewTokenA, lastSeen: new Date().toISOString() },
+      { id: "", roomId: sala.id, nombre: body.nombre, lado: "B", sessionId: body.sessionId, viewToken: viewTokenB, lastSeen: new Date().toISOString() },
     ],
     { estadoSala: "IN_PROGRESS" },
   );

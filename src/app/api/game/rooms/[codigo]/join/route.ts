@@ -2,6 +2,7 @@ import { createAdminClient } from "@/lib/supabase/admin";
 import { generarViewToken } from "@/lib/supabase/game-queries";
 import { crearPartida } from "@/lib/card-game/engine";
 import { MAX_CARTAS_MAZO } from "@/lib/card-game/types";
+import { salaVencida } from "@/lib/card-game/conexion";
 import { cargarDatosDeJuego, obtenerSala, obtenerJugadoresDeSala, emitirEstado, jsonError } from "../../../_lib";
 
 interface Params {
@@ -26,6 +27,7 @@ export async function POST(request: Request, { params }: Params) {
   if (!sala) return jsonError("No existe una partida con ese código.", 404);
   if (sala.estadoSala === "CANCELLED") return jsonError("Esa partida fue cancelada.", 409);
   if (sala.estadoSala !== "WAITING") return jsonError("Esa partida ya no acepta jugadores.", 409);
+  if (salaVencida(sala.expiraEn, Date.now())) return jsonError("Esa sala venció. Pídele a tu rival que cree una nueva.", 410);
   if (!sala.mazoA) return jsonError("La sala no tiene un mazo válido.", 500);
 
   const jugadoresActuales = await obtenerJugadoresDeSala(sala.id);
@@ -57,7 +59,10 @@ export async function POST(request: Request, { params }: Params) {
     .eq("id", sala.id);
   if (errorSala) return jsonError(errorSala.message, 500);
 
-  const jugadores = [...jugadoresActuales, { id: "", roomId: sala.id, nombre: body.nombre, lado: "B" as const, sessionId: body.sessionId, viewToken }];
+  // Al empezar, los dos cuentan como "vistos ahora": el creador pudo esperar minutos sin partida en curso.
+  await supabase.from("game_players").update({ last_seen: new Date().toISOString() }).eq("room_id", sala.id);
+
+  const jugadores = [...jugadoresActuales, { id: "", roomId: sala.id, nombre: body.nombre, lado: "B" as const, sessionId: body.sessionId, viewToken, lastSeen: new Date().toISOString() }];
   await emitirEstado(estadoInicial, jugadores, { estadoSala: "IN_PROGRESS" });
 
   return Response.json({ viewToken });

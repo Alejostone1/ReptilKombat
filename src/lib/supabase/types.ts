@@ -133,6 +133,9 @@ export interface GameRoomRow {
   creado_en: string;
   actualizado_en: string;
   finalizado_en: string | null;
+  /** Caducidad de la sala en espera (QR/código). null = sin caducidad. */
+  expira_en: string | null;
+  formato: string;
 }
 
 export interface GamePlayerRow {
@@ -143,6 +146,8 @@ export interface GamePlayerRow {
   session_id: string;
   view_token: string;
   conectado_en: string;
+  /** Último latido del jugador (ping/acción): base del abandono a los 60 s. */
+  last_seen: string;
 }
 
 export interface GameMoveRow {

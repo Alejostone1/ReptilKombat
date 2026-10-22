@@ -73,6 +73,7 @@ export async function POST(request: Request, { params }: Params) {
     .eq("id", sala.id);
   if (error) return jsonError(error.message, 500);
 
+  await supabase.from("game_players").update({ last_seen: new Date().toISOString() }).eq("id", yo.id);
   await supabase.from("game_moves").insert({ room_id: sala.id, lado: yo.lado, accion: body.accion });
 
   // Analítica real de balance (nunca simulada): un registro por partida online terminada,

@@ -9,6 +9,7 @@ import type { EstadoSala } from "@/lib/supabase/types";
 import { obtenerSessionId } from "@/lib/utils/session";
 import { nivelDeGolpe, recordarAtaque, type MemoriaAtaques } from "@/lib/card-game/memoria-ataques";
 import { DEFAULT_ENGINE_CONFIG } from "@/lib/game-engine/config";
+import { INTERVALO_PING_MS } from "@/lib/card-game/conexion";
 
 type Conexion = "conectando" | "conectado" | "reconectando";
 
@@ -28,6 +29,8 @@ interface RoomHookState {
   ganador: Lado | null;
   conexion: Conexion;
   error: string | null;
+  /** Último dato de señal del rival: segundos sin latido y cuándo (Date.now) se supo. null = sin datos / todo bien. */
+  rivalSinSenal: { segundos: number; recibidoEn: number } | null;
 }
 
 function derivarUltimoAtaque(
@@ -64,6 +67,7 @@ export function useGameRoom(codigo: string | null, viewToken: string | null) {
     ganador: null,
     conexion: "conectando",
     error: null,
+    rivalSinSenal: null,
   });
   const sessionIdRef = useRef<string>("");
 
@@ -130,6 +134,44 @@ export function useGameRoom(codigo: string | null, viewToken: string | null) {
       supabase.removeChannel(channel);
     };
   }, [codigo, viewToken, refrescar]);
+
+  // Latido: mantiene viva mi señal y detecta que el rival se fue (>60 s sin señal = gano por abandono).
+  const estadoSalaActual = estado.estadoSala;
+  useEffect(() => {
+    if (!codigo || !viewToken) return;
+    if (estadoSalaActual !== "WAITING" && estadoSalaActual !== "IN_PROGRESS") return;
+    let cancelado = false;
+
+    async function ping() {
+      if (cancelado) return;
+      try {
+        const res = await fetch(`/api/game/rooms/${codigo}/ping`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ sessionId: obtenerSessionId() }),
+        });
+        if (!res.ok || cancelado) return;
+        const json = await res.json();
+        const seg: number = json.rivalSegundosSinSenal ?? 0;
+        setEstado((s) => ({ ...s, rivalSinSenal: seg > 0 ? { segundos: seg, recibidoEn: Date.now() } : null }));
+        if (json.estadoSala && json.estadoSala !== estadoSalaActual) refrescar();
+      } catch {
+        /* sin red: el siguiente latido lo reintenta */
+      }
+    }
+
+    ping();
+    const intervalo = setInterval(ping, INTERVALO_PING_MS);
+    function alVolver() {
+      if (document.visibilityState === "visible") ping();
+    }
+    document.addEventListener("visibilitychange", alVolver);
+    return () => {
+      cancelado = true;
+      clearInterval(intervalo);
+      document.removeEventListener("visibilitychange", alVolver);
+    };
+  }, [codigo, viewToken, estadoSalaActual, refrescar]);
 
   const ejecutarAccion = useCallback(
     async (accion: { tipo: "invocar"; reptilId: string } | { tipo: "atacar"; habilidadId: string } | { tipo: "cambiar"; reptilId: string }) => {

@@ -1,6 +1,7 @@
 import { createAdminClient } from "@/lib/supabase/admin";
 import { generarCodigoSala, generarViewToken } from "@/lib/supabase/game-queries";
 import { MAX_CARTAS_MAZO } from "@/lib/card-game/types";
+import { MINUTOS_VIGENCIA_SALA } from "@/lib/card-game/conexion";
 import { cargarDatosDeJuego, jsonError } from "../_lib";
 
 interface CrearSalaBody {
@@ -35,7 +36,14 @@ export async function POST(request: Request) {
 
   const { data: sala, error: errorSala } = await supabase
     .from("game_rooms")
-    .insert({ codigo, modo: "amigo", estado_sala: "WAITING", mazo_a: body.mazo, estado: null })
+    .insert({
+      codigo,
+      modo: "amigo",
+      estado_sala: "WAITING",
+      mazo_a: body.mazo,
+      estado: null,
+      expira_en: new Date(Date.now() + MINUTOS_VIGENCIA_SALA * 60_000).toISOString(),
+    })
     .select("id")
     .single();
 

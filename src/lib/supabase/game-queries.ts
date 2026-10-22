@@ -28,6 +28,8 @@ export interface RoomRecord {
   ganador: Lado | null;
   creadoEn: string;
   finalizadoEn: string | null;
+  expiraEn: string | null;
+  formato: string;
 }
 
 export function rowToRoom(row: GameRoomRow): RoomRecord {
@@ -42,6 +44,8 @@ export function rowToRoom(row: GameRoomRow): RoomRecord {
     ganador: row.ganador,
     creadoEn: row.creado_en,
     finalizadoEn: row.finalizado_en,
+    expiraEn: row.expira_en ?? null,
+    formato: row.formato ?? "1v1",
   };
 }
 
@@ -52,6 +56,7 @@ export interface PlayerRecord {
   lado: Lado;
   sessionId: string;
   viewToken: string;
+  lastSeen: string;
 }
 
 export function rowToPlayer(row: GamePlayerRow): PlayerRecord {
@@ -62,6 +67,7 @@ export function rowToPlayer(row: GamePlayerRow): PlayerRecord {
     lado: row.lado,
     sessionId: row.session_id,
     viewToken: row.view_token,
+    lastSeen: row.last_seen ?? row.conectado_en,
   };
 }
 

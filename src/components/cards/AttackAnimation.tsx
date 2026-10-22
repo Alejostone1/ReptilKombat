@@ -29,7 +29,7 @@ export function AttackAnimation({ resultado, habilidadNombre, onComplete }: Atta
   useEffect(() => {
     if (!resultado) return;
     // Vibración corta en celulares que la soporten (crítico y K.O. con patrón propio).
-    if (typeof navigator !== "undefined" && typeof navigator.vibrate === "function") {
+    if (typeof navigator !== "undefined" && typeof navigator.vibrate === "function" && navigator.userActivation?.hasBeenActive !== false) {
       try {
         navigator.vibrate(resultado.derrotado ? [60, 40, 120] : resultado.critico ? [40, 30, 40] : 25);
       } catch {

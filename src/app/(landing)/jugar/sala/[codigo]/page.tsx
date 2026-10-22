@@ -17,6 +17,9 @@ import { TurnBanner } from "@/components/cards/TurnBanner";
 import { AttackAnimation } from "@/components/cards/AttackAnimation";
 import { Countdown } from "@/components/cards/Countdown";
 import { ConnectionBanner } from "@/components/cards/ConnectionBanner";
+import { QRCodeSVG } from "qrcode.react";
+import { urlDeSala } from "@/lib/utils/sala-qr";
+import { RivalDesconectadoBanner } from "@/components/cards/RivalDesconectadoBanner";
 import { SwapSheet, ManoInvocar, candidatosDeCambio } from "@/components/cards/SwapSheet";
 import { AttackMenu } from "@/components/cards/AttackMenu";
 import { ActionDock } from "@/components/cards/ActionDock";
@@ -43,6 +46,12 @@ export default function SalaOnlinePage() {
   const countdownMostrado = useRef(false);
   const [copiado, setCopiado] = useState(false);
   const [cambiando, setCambiando] = useState(false);
+  // window solo existe en el cliente: el enlace se calcula tras montar.
+  const [enlaceSala, setEnlaceSala] = useState("");
+  useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    setEnlaceSala(urlDeSala(window.location.origin, codigo));
+  }, [codigo]);
 
   useEffect(() => {
     if (room.estadoSala === "IN_PROGRESS" && !countdownMostrado.current) {
@@ -99,22 +108,38 @@ export default function SalaOnlinePage() {
 
   if (room.estadoSala === "WAITING") {
     return (
-      <div className="mx-auto flex h-full max-w-md flex-col items-center justify-center gap-6 px-4 text-center">
+      <div className="mx-auto flex min-h-full w-full max-w-md flex-col items-center justify-center gap-4 px-4 text-center">
         <p className="text-2xl">⚔️ ARENA DE BATALLA</p>
         <div>
           <p className="text-xs uppercase tracking-widest text-foreground-muted">Código de partida</p>
-          <p className="text-5xl font-black tracking-[0.2em] text-reptile-green">{codigo}</p>
+          <p className="text-4xl font-black tracking-[0.15em] text-reptile-green sm:text-5xl">{codigo}</p>
         </div>
-        <Button
-          variant="outline"
-          onClick={() => {
-            navigator.clipboard?.writeText(codigo);
-            setCopiado(true);
-            setTimeout(() => setCopiado(false), 1500);
-          }}
-        >
-          {copiado ? "✓ Copiado" : "📋 Copiar código"}
-        </Button>
+        {FEATURES.ONLINE_QR && enlaceSala && (
+          <div className="rounded-2xl bg-white p-3 shadow-lg">
+            <QRCodeSVG value={enlaceSala} size={176} level="M" marginSize={0} title={`QR de la sala ${codigo}`} />
+          </div>
+        )}
+        {FEATURES.ONLINE_QR && <p className="text-xs text-foreground-muted">Tu rival lo escanea desde “Unirse” en el juego</p>}
+        <div className="flex flex-wrap justify-center gap-2">
+          <Button
+            variant="outline"
+            onClick={() => {
+              navigator.clipboard?.writeText(enlaceSala || codigo);
+              setCopiado(true);
+              setTimeout(() => setCopiado(false), 1500);
+            }}
+          >
+            {copiado ? "✓ Copiado" : "🔗 Copiar enlace"}
+          </Button>
+          {FEATURES.ONLINE_QR && typeof navigator !== "undefined" && typeof navigator.share === "function" && (
+            <Button
+              variant="outline"
+              onClick={() => navigator.share({ title: "Reptil Kombat", text: `¡Juega conmigo! Código ${codigo}`, url: enlaceSala }).catch(() => undefined)}
+            >
+              📤 Compartir
+            </Button>
+          )}
+        </div>
         <div className="space-y-2">
           <p className="animate-pulse text-foreground-muted">Esperando oponente...</p>
           <p className="text-sm">
@@ -175,6 +200,7 @@ export default function SalaOnlinePage() {
   return (
     <div className="flex min-h-full flex-col gap-3">
       <ConnectionBanner conexion={room.conexion} />
+      <RivalDesconectadoBanner senal={room.rivalSinSenal} />
       <div className="flex items-center justify-between">
         <h1 className="text-lg font-bold text-foreground sm:text-xl">⚔️ Sala {codigo}</h1>
         <span className="text-xs text-foreground-muted">
