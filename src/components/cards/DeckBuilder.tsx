@@ -2,7 +2,9 @@
 
 import { useMemo, useState } from "react";
 import type { Reptil } from "@/types/reptile";
-import { GameCard } from "./GameCard";
+import { CardPickerTile } from "./CardPickerTile";
+import { CardInfoSheet } from "./CardInfoSheet";
+import { maximosDelRoster } from "@/lib/game-engine/stat-compare";
 import { Input, Select } from "@/components/ui/Input";
 import { AFFINITIES } from "@/types/affinity";
 import { MAX_CARTAS_MAZO } from "@/lib/card-game/types";
@@ -21,8 +23,10 @@ export function DeckBuilder({ titulo, roster, seleccionados, bloqueados, onToggl
   const [query, setQuery] = useState("");
   const [afinidad, setAfinidad] = useState("");
   const [rol, setRol] = useState("");
+  const [detalle, setDetalle] = useState<Reptil | null>(null);
 
   const roles = useMemo(() => Array.from(new Set(roster.map((r) => r.rolTactico))).sort(), [roster]);
+  const maximos = useMemo(() => maximosDelRoster(roster), [roster]);
 
   const filtrados = roster.filter((r) => {
     const q = query.trim().toLowerCase();
@@ -60,28 +64,30 @@ export function DeckBuilder({ titulo, roster, seleccionados, bloqueados, onToggl
       </div>
 
       <p className="text-[11px] text-foreground-muted">
-        {filtrados.length} de {roster.length} reptiles
+        {filtrados.length} de {roster.length} reptiles · toca para elegir, ℹ️ o mantén presionado para ver detalle
       </p>
 
-      <div className="grid max-h-[480px] grid-cols-2 gap-3 overflow-y-auto sm:grid-cols-3">
+      <div className="grid max-h-[70vh] grid-cols-2 gap-3 overflow-y-auto sm:max-h-[520px] sm:grid-cols-3">
         {filtrados.length === 0 && <p className="col-span-full py-6 text-center text-xs text-foreground-muted">Sin resultados.</p>}
         {filtrados.map((r) => {
           const seleccionada = seleccionados.includes(r.id);
           const bloqueadaPorRival = bloqueados.includes(r.id) && !seleccionada;
           const limiteAlcanzado = seleccionados.length >= MAX_CARTAS_MAZO && !seleccionada;
           return (
-            <GameCard
+            <CardPickerTile
               key={r.id}
               reptil={r}
-              size="sm"
-              seleccionable
+              maximos={maximos}
               seleccionada={seleccionada}
               deshabilitada={bloqueadaPorRival || limiteAlcanzado}
-              onClick={() => onToggle(r.id)}
+              onToggle={() => onToggle(r.id)}
+              onVerDetalle={() => setDetalle(r)}
             />
           );
         })}
       </div>
+
+      <CardInfoSheet reptil={detalle} onClose={() => setDetalle(null)} />
     </div>
   );
 }
