@@ -6,7 +6,7 @@ import Link from "next/link";
 import { useRoster } from "@/lib/hooks/useRoster";
 import { useEngineData } from "@/lib/hooks/useEngineData";
 import { useGameRoom } from "@/lib/hooks/useGameRoom";
-import { puedeInvocar, puedeAtacar } from "@/lib/card-game/engine";
+import { puedeInvocar, puedeAtacar, puedeCambiar } from "@/lib/card-game/engine";
 import { opcionesDeAtaque } from "@/lib/card-game/opciones-ataque";
 import { ataqueParaTablero } from "@/lib/card-game/mensajes";
 import { FEATURES } from "@/config/features";
@@ -17,9 +17,9 @@ import { TurnBanner } from "@/components/cards/TurnBanner";
 import { AttackAnimation } from "@/components/cards/AttackAnimation";
 import { Countdown } from "@/components/cards/Countdown";
 import { ConnectionBanner } from "@/components/cards/ConnectionBanner";
-import { GameCard } from "@/components/cards/GameCard";
+import { SwapSheet, ManoInvocar, candidatosDeCambio } from "@/components/cards/SwapSheet";
 import { AttackMenu } from "@/components/cards/AttackMenu";
-import { ActionDock, HandStrip } from "@/components/cards/ActionDock";
+import { ActionDock } from "@/components/cards/ActionDock";
 import { Button } from "@/components/ui/Button";
 import { Card } from "@/components/ui/Card";
 import { cn } from "@/lib/utils";
@@ -42,6 +42,7 @@ export default function SalaOnlinePage() {
   const [mostrarCountdown, setMostrarCountdown] = useState(false);
   const countdownMostrado = useRef(false);
   const [copiado, setCopiado] = useState(false);
+  const [cambiando, setCambiando] = useState(false);
 
   useEffect(() => {
     if (room.estadoSala === "IN_PROGRESS" && !countdownMostrado.current) {
@@ -146,6 +147,7 @@ export default function SalaOnlinePage() {
   const invocarDisponible = esMiTurno && puedeInvocar(room.estado);
   const atacarDisponible = esMiTurno && puedeAtacar(room.estado);
   const miJugador = room.lado === "A" ? room.estado.jugadorA : room.estado.jugadorB;
+  const candidatos = candidatosDeCambio(miJugador, room.estado.configuracion, roster);
 
   function onAtacar(habilidadId: string) {
     room.atacar(habilidadId);
@@ -205,18 +207,30 @@ export default function SalaOnlinePage() {
 
       {room.estado.fase !== "terminado" && (invocarDisponible || atacarDisponible) && (
         <ActionDock titulo={invocarDisponible ? "Invoca tu carta" : "Elige tu ataque"}>
-          {invocarDisponible && (
-            <HandStrip>
-              {miJugador.mazo.map((id) => {
-                const reptil = roster.find((r) => r.id === id);
-                if (!reptil) return null;
-                return <GameCard key={id} reptil={reptil} size="sm" seleccionable onClick={() => room.invocar(id)} />;
-              })}
-            </HandStrip>
-          )}
+          {invocarDisponible && <ManoInvocar candidatos={candidatos} onElegir={(id) => room.invocar(id)} />}
           {atacarDisponible && <AttackMenu opciones={opciones} memoria={room.memoria} ocultarDano={FEATURES.HIDE_ATTACK_DAMAGE} onAtacar={onAtacar} />}
+          {atacarDisponible && FEATURES.CARD_SWAP && puedeCambiar(room.estado) && (
+            <button
+              type="button"
+              onClick={() => setCambiando(true)}
+              style={{ touchAction: "manipulation" }}
+              className="mt-2 flex min-h-11 w-full items-center justify-center gap-2 rounded-xl border border-border-subtle bg-panel-secondary text-sm font-bold text-foreground transition active:scale-[0.98]"
+            >
+              🔄 Cambiar carta <span className="text-xs font-normal text-foreground-muted">(gasta el turno)</span>
+            </button>
+          )}
         </ActionDock>
       )}
+
+      <SwapSheet
+        abierto={cambiando}
+        candidatos={candidatos}
+        onElegir={(id) => {
+          setCambiando(false);
+          room.cambiar(id);
+        }}
+        onClose={() => setCambiando(false)}
+      />
 
       {!esMiTurno && room.estado.fase !== "terminado" && (
         <p className="text-center text-sm text-foreground-muted">Esperando a {nombreTurno}...</p>

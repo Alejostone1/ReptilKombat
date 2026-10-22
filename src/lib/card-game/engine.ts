@@ -15,6 +15,11 @@ function jugador(state: GameState, lado: Lado): JugadorState {
   return lado === "A" ? state.jugadorA : state.jugadorB;
 }
 
+/** Banca del jugador (vacía en estados antiguos que no la traen). */
+export function bancaDe(j: JugadorState): CartaEnJuego[] {
+  return j.banca ?? [];
+}
+
 function conJugador(state: GameState, lado: Lado, jugadorNuevo: JugadorState): GameState {
   return lado === "A" ? { ...state, jugadorA: jugadorNuevo } : { ...state, jugadorB: jugadorNuevo };
 }
@@ -78,7 +83,14 @@ export function crearPartida(
 export function puedeInvocar(state: GameState): boolean {
   if (state.fase === "terminado") return false;
   const j = jugador(state, state.turno);
-  return j.activo === null && j.mazo.length > 0;
+  return j.activo === null && (j.mazo.length > 0 || bancaDe(j).length > 0);
+}
+
+/** Cambiar de carta: en tu turno, en combate, con carta activa y alguna otra disponible (mazo o banca). Gasta el turno. */
+export function puedeCambiar(state: GameState): boolean {
+  if (state.fase !== "combatiendo") return false;
+  const j = jugador(state, state.turno);
+  return j.activo !== null && (j.mazo.length > 0 || bancaDe(j).length > 0);
 }
 
 export function puedeAtacar(state: GameState): boolean {
@@ -105,12 +117,13 @@ function nuevaCartaEnJuego(reptilId: string, hpActual: number, energiaMax: numbe
   return { reptilId, hpActual, energiaActual: energiaMax, cooldowns: {}, estados: [], aturdidoTurnos: 0 };
 }
 
-/** Invoca un reptil del mazo del jugador en turno. Pasa el turno automáticamente. */
+/** Invoca un reptil del mazo (carta nueva, vida completa) o de la banca (conserva su vida) del jugador en turno. Pasa el turno automáticamente. */
 export function invocar(state: GameState, reptilId: string, roster: Reptil[]): GameState {
   if (!puedeInvocar(state)) throw new Error("No se puede invocar en este momento.");
   const lado = state.turno;
   const j = jugador(state, lado);
-  if (!j.mazo.includes(reptilId)) throw new Error("Ese reptil no está disponible en el mazo.");
+  const enBanca = bancaDe(j).find((c) => c.reptilId === reptilId);
+  if (!enBanca && !j.mazo.includes(reptilId)) throw new Error("Ese reptil no está disponible en el mazo.");
   const stats = state.configuracion.reptiles[reptilId];
   const reptil = roster.find((r) => r.id === reptilId);
   if (!stats || !reptil) throw new Error("Reptil desconocido.");
@@ -118,7 +131,8 @@ export function invocar(state: GameState, reptilId: string, roster: Reptil[]): G
   const jugadorActualizado: JugadorState = {
     ...j,
     mazo: j.mazo.filter((id) => id !== reptilId),
-    activo: nuevaCartaEnJuego(reptilId, stats.hp, stats.energiaMax),
+    ...(j.banca ? { banca: j.banca.filter((c) => c.reptilId !== reptilId) } : {}),
+    activo: enBanca ?? nuevaCartaEnJuego(reptilId, stats.hp, stats.energiaMax),
   };
 
   const evento: EventoLog = {
@@ -134,6 +148,49 @@ export function invocar(state: GameState, reptilId: string, roster: Reptil[]): G
   const ambosActivos = jugador(next, "A").activo !== null && jugador(next, "B").activo !== null;
   if (ambosActivos && next.fase === "invocando") next = { ...next, fase: "combatiendo" };
 
+  return avanzarTurno(next);
+}
+
+/** Carta que se retira a la banca: conserva HP, energía y cooldowns, pero pierde estados (veneno, buffs, aturdimiento), como en los juegos de cartas/monstruos. */
+function retirarABanca(carta: CartaEnJuego): CartaEnJuego {
+  return { ...carta, estados: [], aturdidoTurnos: 0 };
+}
+
+/**
+ * Cambia la carta activa por otra del mazo (entra con vida completa) o de la banca (entra con la vida que
+ * tenía). Consume el turno. La activa se retira a la banca con su vida actual. No se puede cambiar a la
+ * misma carta ni a una derrotada (las derrotadas van al cementerio, nunca están en mazo/banca).
+ */
+export function cambiar(state: GameState, reptilId: string, roster: Reptil[]): GameState {
+  if (!puedeCambiar(state)) throw new Error("No se puede cambiar de carta en este momento.");
+  const lado = state.turno;
+  const j = jugador(state, lado);
+  const saliente = j.activo!;
+  if (saliente.reptilId === reptilId) throw new Error("Esa carta ya está en combate.");
+
+  const enBanca = bancaDe(j).find((c) => c.reptilId === reptilId);
+  if (!enBanca && !j.mazo.includes(reptilId)) throw new Error("Esa carta no está disponible para entrar.");
+  const stats = state.configuracion.reptiles[reptilId];
+  const reptil = roster.find((r) => r.id === reptilId);
+  if (!stats || !reptil) throw new Error("Reptil desconocido.");
+  const nombreSaliente = state.configuracion.reptiles[saliente.reptilId]?.nombre ?? "su reptil";
+
+  const entrante = enBanca ?? nuevaCartaEnJuego(reptilId, stats.hp, stats.energiaMax);
+  const nuevaBanca = [...bancaDe(j).filter((c) => c.reptilId !== reptilId), retirarABanca(saliente)];
+
+  const jugadorActualizado: JugadorState = {
+    ...j,
+    mazo: j.mazo.filter((id) => id !== reptilId),
+    banca: nuevaBanca,
+    activo: entrante,
+  };
+  const evento: EventoLog = {
+    turno: state.numeroTurno,
+    lado,
+    tipo: "cambio",
+    mensaje: `${j.nombre} retira a ${nombreSaliente} y entra ${reptil.nombre}.`,
+  };
+  const next = { ...conJugador(state, lado, jugadorActualizado), log: [...state.log, evento] };
   return avanzarTurno(next);
 }
 
@@ -347,7 +404,7 @@ function round2(n: number): number {
 }
 
 function haPerdido(j: JugadorState): boolean {
-  return j.activo === null && j.mazo.length === 0;
+  return j.activo === null && j.mazo.length === 0 && bancaDe(j).length === 0;
 }
 
 export function verificarGanador(state: GameState): Lado | null {
@@ -379,8 +436,10 @@ export function toPublicView(state: GameState, ladoQueMira: Lado): GameState {
     ...propio.mazo,
     ...(propio.activo ? [propio.activo.reptilId] : []),
     ...propio.cementerio,
+    ...bancaDe(propio).map((c) => c.reptilId),
     ...(rival.activo ? [rival.activo.reptilId] : []),
     ...rival.cementerio,
+    ...bancaDe(rival).map((c) => c.reptilId),
   ]);
 
   const reptiles: Configuracion["reptiles"] = {};
@@ -401,7 +460,8 @@ export function totalVidaEjercito(j: JugadorState, roster: Reptil[]): number {
     const r = roster.find((x) => x.id === id);
     return acc + (r?.hp ?? 0);
   }, 0);
-  return vidaMazo + (j.activo?.hpActual ?? 0);
+  const vidaBanca = bancaDe(j).reduce((acc, c) => acc + c.hpActual, 0);
+  return vidaMazo + vidaBanca + (j.activo?.hpActual ?? 0);
 }
 
 /** Multiplicador efectivo de una stat tras aplicar sus buffs/debuffs activos (1 = sin cambio). */

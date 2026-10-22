@@ -3,6 +3,8 @@
 import type { Reptil } from "@/types/reptile";
 import type { GameState, Lado } from "@/lib/card-game/types";
 import { GameCard, type TonoImpacto } from "./GameCard";
+import { AFFINITY_META } from "@/types/affinity";
+import { bancaDe } from "@/lib/card-game/engine";
 import { cn } from "@/lib/utils";
 
 interface BoardProps {
@@ -16,24 +18,70 @@ interface BoardProps {
   ataque?: { id: number; atacante: Lado; objetivo: Lado; texto: string; tono: TonoImpacto } | null;
 }
 
+interface FichaBanca {
+  reptilId: string;
+  nombre: string;
+  emoji: string;
+  color: string;
+  pct: number;
+}
+
 function LadoInfo({
   nombre,
   mazoRestante,
   cementerio,
   activo,
+  banca,
+  alDerecha,
 }: {
   nombre: string;
   mazoRestante: number;
   cementerio: number;
   activo: boolean;
+  banca: FichaBanca[];
+  alDerecha?: boolean;
 }) {
   return (
-    <div className={cn("flex items-center gap-1.5 text-[11px] sm:text-xs", activo && "font-semibold text-reptile-green")}>
-      <span className="truncate text-foreground">{nombre}</span>
-      <span className="shrink-0 text-foreground-muted">🂠 {mazoRestante}</span>
-      <span className="shrink-0 text-foreground-muted">💀 {cementerio}</span>
+    <div className={cn("flex min-w-0 flex-col gap-1", alDerecha && "items-end")}>
+      <div className={cn("flex items-center gap-1.5 text-[11px] sm:text-xs", activo && "font-semibold text-reptile-green")}>
+        <span className="truncate text-foreground">{nombre}</span>
+        <span className="shrink-0 text-foreground-muted">🂠 {mazoRestante}</span>
+        <span className="shrink-0 text-foreground-muted">💀 {cementerio}</span>
+      </div>
+      {banca.length > 0 && (
+        <div className="flex gap-1" aria-label="Cartas en banca">
+          {banca.map((f) => (
+            <span
+              key={f.reptilId}
+              title={`${f.nombre} · ${Math.round(f.pct)}% de vida (en banca)`}
+              className="flex flex-col items-center rounded-md border bg-panel px-1 py-0.5 text-[10px] leading-none"
+              style={{ borderColor: f.color }}
+            >
+              {f.emoji}
+              <span className="mt-0.5 block h-0.5 w-4 overflow-hidden rounded-full bg-panel-secondary">
+                <span className={cn("block h-full", f.pct > 50 ? "bg-state-ok" : f.pct > 20 ? "bg-state-warn" : "bg-state-danger")} style={{ width: `${f.pct}%` }} />
+              </span>
+            </span>
+          ))}
+        </div>
+      )}
     </div>
   );
+}
+
+function fichasBanca(gameState: GameState, lado: Lado): FichaBanca[] {
+  const j = lado === "A" ? gameState.jugadorA : gameState.jugadorB;
+  return bancaDe(j).map((c) => {
+    const stats = gameState.configuracion.reptiles[c.reptilId];
+    const meta = stats ? AFFINITY_META[stats.afinidad] : null;
+    return {
+      reptilId: c.reptilId,
+      nombre: stats?.nombre ?? "Reptil",
+      emoji: meta?.emoji ?? "🦎",
+      color: meta?.color ?? "#888",
+      pct: stats ? Math.max(0, Math.min(100, (c.hpActual / stats.hp) * 100)) : 0,
+    };
+  });
 }
 
 const EMPTY_SLOT_CLASSES = "flex aspect-[3/4] w-[40vw] max-w-[10.5rem] items-center justify-center rounded-xl border-2 border-dashed border-border-subtle p-3 text-center text-xs text-foreground-muted sm:w-48 sm:max-w-none md:w-56";
@@ -52,12 +100,15 @@ export function Board({ gameState, roster, sacudirLado, ultimaInvocacion, ultimo
           mazoRestante={gameState.jugadorA.mazo.length}
           cementerio={gameState.jugadorA.cementerio.length}
           activo={gameState.turno === "A"}
+          banca={fichasBanca(gameState, "A")}
         />
         <LadoInfo
           nombre={gameState.jugadorB.nombre}
           mazoRestante={gameState.jugadorB.mazo.length}
           cementerio={gameState.jugadorB.cementerio.length}
           activo={gameState.turno === "B"}
+          banca={fichasBanca(gameState, "B")}
+          alDerecha
         />
       </div>
 

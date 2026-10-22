@@ -6,7 +6,7 @@ import type { Habilidad } from "@/types/ability";
 import type { EngineConfig } from "@/lib/game-engine/config";
 import type { GameState, Lado } from "@/lib/card-game/types";
 import { MAX_CARTAS_MAZO } from "@/lib/card-game/types";
-import { crearPartida, invocar as invocarEngine, atacar as atacarEngine, type ResultadoAtaque } from "@/lib/card-game/engine";
+import { crearPartida, invocar as invocarEngine, atacar as atacarEngine, cambiar as cambiarEngine, type ResultadoAtaque } from "@/lib/card-game/engine";
 import type { PersonalidadIA } from "@/lib/card-game/ai";
 import { nivelDeGolpe, recordarAtaque, type MemoriaAtaques } from "@/lib/card-game/memoria-ataques";
 
@@ -52,6 +52,8 @@ interface GameStoreState {
   confirmarTurno: () => void;
   invocar: (reptilId: string, roster: Reptil[]) => void;
   atacar: (habilidadId: string, roster: Reptil[], abilities: Habilidad[], config: EngineConfig) => void;
+  /** Cambia la carta activa por otra del mazo o la banca (gasta el turno). */
+  cambiar: (reptilId: string, roster: Reptil[]) => void;
   limpiarUltimoDerrotado: () => void;
   reiniciar: () => void;
 }
@@ -157,6 +159,13 @@ export const useGameStore = create<GameStoreState>()((set, get) => ({
       ultimoDerrotado: resultado.derrotado && reptilIdDefensor ? { lado: ladoDefensor, reptilId: reptilIdDefensor } : null,
       pantallaTransicion: !s.modoIA,
     });
+  },
+
+  cambiar: (reptilId, roster) => {
+    const s = get();
+    if (!s.state) return;
+    const nuevoEstado = cambiarEngine(s.state, reptilId, roster);
+    set({ state: nuevoEstado, ultimoResultado: null, ultimoDerrotado: null, pantallaTransicion: !s.modoIA });
   },
 
   limpiarUltimoDerrotado: () => set({ ultimoDerrotado: null }),

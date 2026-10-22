@@ -4,7 +4,7 @@ import type { EngineConfig } from "@/lib/game-engine/config";
 import { calculateDamage } from "@/lib/game-engine/damage";
 import { getAffinityTier } from "@/lib/game-engine/affinities";
 import type { GameState, Lado } from "./types";
-import { puedeInvocar, puedeAtacar, habilidadesDisponibles, puedeUsarHabilidad } from "./engine";
+import { puedeInvocar, puedeAtacar, habilidadesDisponibles, puedeUsarHabilidad, bancaDe } from "./engine";
 
 export type AccionIA = { tipo: "invocar"; reptilId: string } | { tipo: "atacar"; habilidadId: string };
 
@@ -38,7 +38,8 @@ export function decidirAccionIA(
 
   if (puedeInvocar(state)) {
     const rivalActivo = rival.activo ? roster.find((r) => r.id === rival.activo!.reptilId) : null;
-    const candidatos = propio.mazo
+    // Reemplazo forzado: puede salir del mazo o de la banca (la IA no cambia de carta por voluntad propia).
+    const candidatos = [...propio.mazo, ...bancaDe(propio).map((c) => c.reptilId)]
       .map((id) => roster.find((r) => r.id === id))
       .filter((r): r is Reptil => r !== undefined);
     if (candidatos.length === 0) return null;
@@ -46,9 +47,12 @@ export function decidirAccionIA(
     const puntuado = candidatos.map((r) => {
       const tier = rivalActivo ? getAffinityTier(r.afinidad, rivalActivo.afinidad) : "neutral";
       const puntaje = tier === "ventaja" ? 2 : tier === "neutral" ? 1 : 0;
-      return { reptil: r, puntaje };
+      // Una carta de la banca llega con la vida que tenía: a igual matchup se prefiere la más sana.
+      const enBanca = bancaDe(propio).find((c) => c.reptilId === r.id);
+      const salud = enBanca ? enBanca.hpActual / r.hp : 1;
+      return { reptil: r, puntaje, salud };
     });
-    puntuado.sort((a, b) => b.puntaje - a.puntaje || b.reptil.bst - a.reptil.bst);
+    puntuado.sort((a, b) => b.puntaje - a.puntaje || b.salud - a.salud || b.reptil.bst - a.reptil.bst);
     return { tipo: "invocar", reptilId: puntuado[0].reptil.id };
   }
 

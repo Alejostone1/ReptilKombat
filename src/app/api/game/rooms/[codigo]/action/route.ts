@@ -1,5 +1,6 @@
 import { createAdminClient } from "@/lib/supabase/admin";
-import { invocar, atacar, toPublicView } from "@/lib/card-game/engine";
+import { invocar, atacar, cambiar, toPublicView } from "@/lib/card-game/engine";
+import { FEATURES } from "@/config/features";
 import type { ResultadoAtaque } from "@/lib/card-game/engine";
 import type { GameState } from "@/lib/card-game/types";
 import {
@@ -15,7 +16,7 @@ interface Params {
   params: Promise<{ codigo: string }>;
 }
 
-type Accion = { tipo: "invocar"; reptilId: string } | { tipo: "atacar"; habilidadId: string };
+type Accion = { tipo: "invocar"; reptilId: string } | { tipo: "atacar"; habilidadId: string } | { tipo: "cambiar"; reptilId: string };
 
 interface AccionBody {
   sessionId: string;
@@ -47,6 +48,9 @@ export async function POST(request: Request, { params }: Params) {
   try {
     if (body.accion.tipo === "invocar") {
       nuevoEstado = invocar(estadoActual, body.accion.reptilId, roster);
+    } else if (body.accion.tipo === "cambiar") {
+      if (!FEATURES.CARD_SWAP) return jsonError("El cambio de carta no está disponible.", 400);
+      nuevoEstado = cambiar(estadoActual, body.accion.reptilId, roster);
     } else {
       const { state, ...resto } = atacar(estadoActual, body.accion.habilidadId, roster, abilities, config);
       nuevoEstado = state;

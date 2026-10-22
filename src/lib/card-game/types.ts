@@ -28,6 +28,12 @@ export interface JugadorState {
   mazo: string[]; // ids de reptiles aún no invocados
   activo: CartaEnJuego | null;
   cementerio: string[]; // ids de reptiles derrotados
+  /**
+   * Cartas ya jugadas y retiradas con vida (cambio de carta). Conservan HP, energía y cooldowns.
+   * Es información pública (ya se vieron en mesa). Opcional: estados guardados antes de existir el
+   * cambio de carta no lo traen — usar siempre `bancaDe(j)` en vez de leerlo directo.
+   */
+  banca?: CartaEnJuego[];
 }
 
 export type FaseJuego = "invocando" | "combatiendo" | "terminado";
@@ -35,7 +41,7 @@ export type FaseJuego = "invocando" | "combatiendo" | "terminado";
 export interface EventoLog {
   turno: number;
   lado: Lado;
-  tipo: "invocacion" | "ataque" | "derrota" | "victoria" | "estado";
+  tipo: "invocacion" | "ataque" | "derrota" | "victoria" | "estado" | "cambio";
   mensaje: string;
   detalle?: {
     habilidadId?: string;

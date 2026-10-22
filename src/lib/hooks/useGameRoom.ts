@@ -132,7 +132,7 @@ export function useGameRoom(codigo: string | null, viewToken: string | null) {
   }, [codigo, viewToken, refrescar]);
 
   const ejecutarAccion = useCallback(
-    async (accion: { tipo: "invocar"; reptilId: string } | { tipo: "atacar"; habilidadId: string }) => {
+    async (accion: { tipo: "invocar"; reptilId: string } | { tipo: "atacar"; habilidadId: string } | { tipo: "cambiar"; reptilId: string }) => {
       if (!codigo) return;
       const res = await fetch(`/api/game/rooms/${codigo}/action`, {
         method: "POST",
@@ -172,6 +172,7 @@ export function useGameRoom(codigo: string | null, viewToken: string | null) {
     ...estado,
     invocar: (reptilId: string) => ejecutarAccion({ tipo: "invocar", reptilId }),
     atacar: (habilidadId: string) => ejecutarAccion({ tipo: "atacar", habilidadId }),
+    cambiar: (reptilId: string) => ejecutarAccion({ tipo: "cambiar", reptilId }),
     limpiarUltimoDerrotado: () => setEstado((s) => ({ ...s, ultimoDerrotado: null })),
     limpiarUltimoResultado: () => setEstado((s) => ({ ...s, ultimoResultado: null, ultimoDerrotado: null })),
     refrescar,

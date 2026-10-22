@@ -6,7 +6,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import { useRoster } from "@/lib/hooks/useRoster";
 import { useEngineData } from "@/lib/hooks/useEngineData";
 import { useGameStore } from "@/lib/store/game-store";
-import { puedeInvocar, puedeAtacar, configuracionARosterYHabilidades } from "@/lib/card-game/engine";
+import { puedeInvocar, puedeAtacar, puedeCambiar, configuracionARosterYHabilidades } from "@/lib/card-game/engine";
 import { decidirAccionIA } from "@/lib/card-game/ai";
 import { opcionesDeAtaque } from "@/lib/card-game/opciones-ataque";
 import { ataqueParaTablero } from "@/lib/card-game/mensajes";
@@ -15,9 +15,9 @@ import type { Lado } from "@/lib/card-game/types";
 import { Board } from "@/components/cards/Board";
 import { TurnBanner } from "@/components/cards/TurnBanner";
 import { AttackAnimation } from "@/components/cards/AttackAnimation";
-import { GameCard } from "@/components/cards/GameCard";
 import { AttackMenu } from "@/components/cards/AttackMenu";
-import { ActionDock, HandStrip } from "@/components/cards/ActionDock";
+import { ActionDock } from "@/components/cards/ActionDock";
+import { SwapSheet, ManoInvocar, candidatosDeCambio } from "@/components/cards/SwapSheet";
 import { Button } from "@/components/ui/Button";
 import { Card } from "@/components/ui/Card";
 
@@ -25,10 +25,11 @@ export default function MesaPage() {
   const router = useRouter();
   const { roster, abilities } = useRoster();
   const { config } = useEngineData();
-  const { state, ultimoResultado, ultimoDerrotado, ultimoAtaque, memoria, pantallaTransicion, modoIA, ladoIA, personalidadIA, invocar, atacar, confirmarTurno, reiniciar } =
+  const { state, ultimoResultado, ultimoDerrotado, ultimoAtaque, memoria, pantallaTransicion, modoIA, ladoIA, personalidadIA, invocar, atacar, cambiar, confirmarTurno, reiniciar } =
     useGameStore();
   const [sacudirLado, setSacudirLado] = useState<Lado | null>(null);
   const [ultimaInvocacion, setUltimaInvocacion] = useState<Lado | null>(null);
+  const [cambiando, setCambiando] = useState(false);
   const iaJugando = useRef(false);
 
   // Turno de la IA: se salta la pantalla de "pasa el dispositivo" y juega sola tras una breve pausa.
@@ -90,7 +91,16 @@ export default function MesaPage() {
   const esTurnoDeLaIA = modoIA && state.turno === ladoIA;
   const invocarDisponible = !esTurnoDeLaIA && puedeInvocar(state);
   const atacarDisponible = !esTurnoDeLaIA && puedeAtacar(state);
-  const manoTurno = state.turno === "A" ? state.jugadorA.mazo : state.jugadorB.mazo;
+  const jugadorEnTurno = state.turno === "A" ? state.jugadorA : state.jugadorB;
+  const candidatos = candidatosDeCambio(jugadorEnTurno, state.configuracion, roster);
+  const puedeCambiarCarta = FEATURES.CARD_SWAP && puedeCambiar(state);
+
+  function onCambiar(reptilId: string) {
+    setCambiando(false);
+    cambiar(reptilId, roster);
+    setUltimaInvocacion(state?.turno ?? null);
+    setTimeout(() => setUltimaInvocacion(null), 700);
+  }
 
   function onInvocar(reptilId: string) {
     if (!state) return;
@@ -134,18 +144,22 @@ export default function MesaPage() {
 
       {!esTurnoDeLaIA && state.fase !== "terminado" && (
         <ActionDock titulo={invocarDisponible ? `Invoca una carta — ${nombreTurno}` : `Elige tu ataque — ${nombreTurno}`}>
-          {invocarDisponible && (
-            <HandStrip>
-              {manoTurno.map((id) => {
-                const reptil = roster.find((r) => r.id === id);
-                if (!reptil) return null;
-                return <GameCard key={id} reptil={reptil} size="sm" seleccionable onClick={() => onInvocar(id)} />;
-              })}
-            </HandStrip>
-          )}
+          {invocarDisponible && <ManoInvocar candidatos={candidatos} onElegir={onInvocar} />}
           {atacarDisponible && <AttackMenu opciones={opciones} memoria={memoria} ocultarDano={FEATURES.HIDE_ATTACK_DAMAGE} onAtacar={onAtacar} />}
+          {atacarDisponible && puedeCambiarCarta && (
+            <button
+              type="button"
+              onClick={() => setCambiando(true)}
+              style={{ touchAction: "manipulation" }}
+              className="mt-2 flex min-h-11 w-full items-center justify-center gap-2 rounded-xl border border-border-subtle bg-panel-secondary text-sm font-bold text-foreground transition active:scale-[0.98]"
+            >
+              🔄 Cambiar carta <span className="text-xs font-normal text-foreground-muted">(gasta el turno)</span>
+            </button>
+          )}
         </ActionDock>
       )}
+
+      <SwapSheet abierto={cambiando} candidatos={candidatos} onElegir={onCambiar} onClose={() => setCambiando(false)} />
 
       {state.fase === "terminado" && (
         <Card className="border-reptile-green/50 bg-reptile-green/10 p-8 text-center">
